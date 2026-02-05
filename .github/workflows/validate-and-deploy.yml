@@ -189,9 +189,11 @@ jobs:
         run: |
           pip install sigma-cli
           # Install backend-specific plugins
-          # These provide the actual query language converters
           pip install pysigma-backend-splunk
           pip install pysigma-backend-microsoft365defender
+          # Install pipeline plugins for field mappings
+          pip install pysigma-pipeline-sysmon
+          pip install pysigma-pipeline-windows
           
       - name: Convert rules to ${{ matrix.siem }}
         run: |
@@ -209,7 +211,7 @@ jobs:
             echo "Converting: $rule -> $output_file"
             sigma convert \
               --target ${{ matrix.siem }} \
-              --pipeline ${{ matrix.siem }} \
+              --pipeline sysmon \
               "$rule" > "$output_file" 2>&1 || {
                 echo "ERROR converting $rule"
                 cat "$output_file"
