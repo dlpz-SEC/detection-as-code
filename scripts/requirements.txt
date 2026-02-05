@@ -1,0 +1,23 @@
+# Detection-as-Code Pipeline Dependencies
+# 
+# Core dependencies for validation, coverage analysis, and testing.
+# sigma-cli is installed separately as it has its own plugin system.
+
+# YAML parsing - used by all scripts
+PyYAML>=6.0
+
+# Type hints support for older Python versions
+typing-extensions>=4.0
+
+# Optional: For more advanced YAML validation
+# jsonschema>=4.0
+
+# Optional: For richer console output
+# rich>=13.0
+
+# Note: sigma-cli and its backends are installed via pip directly in CI:
+#   pip install sigma-cli
+#   pip install pysigma-backend-splunk
+#   pip install pysigma-backend-microsoft365defender
+#
+# This separation allows for easier backend management and version pinning.

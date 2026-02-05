@@ -1,0 +1,79 @@
+# Coverage Configuration
+# 
+# Defines organizational priorities for MITRE ATT&CK technique coverage.
+# Higher priority techniques should have higher detection confidence.
+#
+# Priority levels:
+#   critical: Must have high-confidence detection (score >= 0.8)
+#   high: Should have medium+ confidence (score >= 0.5)
+#   medium: Target for coverage expansion
+#   low: Nice to have
+
+priority_techniques:
+  critical:
+    # Initial Access - most common entry vectors
+    - T1566.001  # Phishing: Spearphishing Attachment
+    - T1566.002  # Phishing: Spearphishing Link
+    - T1190      # Exploit Public-Facing Application
+    
+    # Execution - commonly chained after initial access
+    - T1059.001  # PowerShell
+    - T1059.003  # Windows Command Shell
+    - T1204.002  # User Execution: Malicious File
+    
+    # Credential Access - high-impact techniques
+    - T1003.001  # OS Credential Dumping: LSASS Memory
+    - T1003.003  # OS Credential Dumping: NTDS
+    - T1558.003  # Steal or Forge Kerberos Tickets: Kerberoasting
+    
+    # Defense Evasion - commonly used for stealth
+    - T1055      # Process Injection
+    - T1055.001  # Process Injection: DLL Injection
+    
+    # Impact - ransomware-related
+    - T1486      # Data Encrypted for Impact
+    - T1490      # Inhibit System Recovery
+  
+  high:
+    # Persistence mechanisms
+    - T1547.001  # Boot/Logon Autostart: Registry Run Keys
+    - T1053.005  # Scheduled Task
+    - T1543.003  # Create/Modify System Process: Windows Service
+    
+    # Lateral Movement
+    - T1021.001  # Remote Services: RDP
+    - T1021.002  # Remote Services: SMB/Windows Admin Shares
+    - T1021.006  # Remote Services: WinRM
+    
+    # Exfiltration
+    - T1041      # Exfiltration Over C2 Channel
+    - T1567      # Exfiltration Over Web Service
+  
+  medium:
+    # Discovery (noisy but useful for threat hunting)
+    - T1082      # System Information Discovery
+    - T1087      # Account Discovery
+    - T1069      # Permission Groups Discovery
+    - T1018      # Remote System Discovery
+    
+    # Collection
+    - T1560.001  # Archive via Utility
+    - T1005      # Data from Local System
+  
+  low:
+    # Reconnaissance (typically external, limited visibility)
+    - T1592      # Gather Victim Host Information
+    - T1589      # Gather Victim Identity Information
+
+# Coverage score thresholds
+scoring:
+  target_overall_score: 0.65  # Target 65% weighted coverage
+  minimum_critical_score: 0.80  # Critical techniques must score >= 80%
+  minimum_high_score: 0.50  # High priority techniques >= 50%
+  
+# Alert on coverage gaps
+alerts:
+  # Generate alert if any critical technique drops below threshold
+  critical_threshold: 0.70
+  # Generate alert if overall score drops below target
+  overall_threshold: 0.50

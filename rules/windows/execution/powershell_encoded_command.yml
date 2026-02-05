@@ -1,0 +1,143 @@
+title: PowerShell Execution with Encoded Command
+id: a5c8d2e1-3f4b-5a6c-7d8e-9f0a1b2c3d4e
+status: stable
+description: |
+    Detects PowerShell execution with base64-encoded commands.
+    This technique is commonly used by attackers to obfuscate malicious
+    payloads and evade signature-based detection.
+    
+    The -EncodedCommand (-enc, -e) parameter accepts a base64-encoded
+    string that PowerShell decodes and executes. While legitimate
+    use cases exist (complex scripts, special characters), this pattern
+    warrants investigation when observed.
+references:
+    - https://attack.mitre.org/techniques/T1059/001/
+    - https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_powershell_exe
+    - https://www.sans.org/blog/powershell-obfuscation-techniques/
+author: Detection Engineering Team
+date: 2024/02/01
+modified: 2024/03/15
+tags:
+    - attack.execution
+    - attack.t1059
+    - attack.t1059.001
+    - attack.defense_evasion
+    - attack.t1027
+logsource:
+    category: process_creation
+    product: windows
+detection:
+    # Target PowerShell process
+    selection_powershell:
+        Image|endswith:
+            - '\powershell.exe'
+            - '\pwsh.exe'
+        
+    # Encoded command parameter variations
+    selection_encoded:
+        CommandLine|contains:
+            - ' -enc '
+            - ' -en '
+            - ' -e '
+            - ' -ec '
+            - ' -encodedcommand '
+            - ' -EncodedCommand '
+    
+    # Additional suspicious indicators
+    selection_suspicious_combo:
+        CommandLine|contains:
+            - '-nop'           # NoProfile
+            - '-noni'          # NonInteractive  
+            - '-w hidden'      # Hidden window
+            - '-windowstyle h' # Hidden window variant
+            - '-ep bypass'     # Execution policy bypass
+            - '-exec bypass'   # Execution policy bypass
+    
+    # Known legitimate automation tools
+    filter_sccm:
+        ParentImage|contains:
+            - '\ccmexec.exe'
+            - '\CcmExec.exe'
+        CommandLine|contains: '-ExecutionPolicy'
+    
+    filter_azure:
+        ParentImage|contains:
+            - '\waappagent.exe'
+            - '\WindowsAzureGuestAgent.exe'
+    
+    filter_intune:
+        ParentImage|contains: '\Microsoft.Management.Services'
+    
+    # DSC (Desired State Configuration) operations
+    filter_dsc:
+        CommandLine|contains: 'Start-DscConfiguration'
+    
+    condition: >
+        selection_powershell and selection_encoded 
+        and not (filter_sccm or filter_azure or filter_intune or filter_dsc)
+
+level: medium
+
+falsepositives:
+    - SCCM/MECM deployments using encoded commands for complex scripts
+    - Azure automation runbooks
+    - Intune management scripts
+    - Legitimate admin scripts with special characters
+    - Some backup solutions
+
+custom:
+    lifecycle: production
+    confidence: medium
+    false_positive_rate: medium
+    
+    investigation_steps: |
+        1. Decode the base64 payload:
+           - Extract the base64 string after -enc parameter
+           - Decode: [System.Text.Encoding]::Unicode.GetString([Convert]::FromBase64String("..."))
+        
+        2. Analyze the decoded script:
+           - Check for download/invoke operations (IEX, Invoke-Expression)
+           - Look for credential harvesting
+           - Identify network connections
+        
+        3. Check the parent process:
+           - Is it expected for this user/system?
+           - Is the parent process signed?
+        
+        4. Correlate with network activity:
+           - Did PowerShell make any network connections?
+           - Were any files downloaded?
+        
+        5. Review user context:
+           - Is this a service account or interactive user?
+           - Has this user executed encoded commands before?
+    
+    tuning_notes: |
+        This rule has a MEDIUM false positive rate due to legitimate
+        automation use cases. Tune as follows:
+        
+        1. Baseline your environment:
+           - Run for 7 days in log-only mode
+           - Identify recurring legitimate encoded command patterns
+        
+        2. Add exclusions by:
+           - Parent process (management tools)
+           - Specific base64 patterns (if static)
+           - Service accounts with documented automation
+        
+        3. Consider splitting into HIGH and MEDIUM severity:
+           - HIGH: Encoded + hidden window + execution bypass
+           - MEDIUM: Encoded command only
+    
+    mitre_context:
+        technique: T1059.001
+        tactic: Execution
+        data_sources:
+            - Process: Process Creation
+            - Command: Command Execution
+        platforms:
+            - Windows
+    
+    owner: detection-engineering@example.com
+    review_frequency: monthly
+    last_reviewed: 2024-03-15

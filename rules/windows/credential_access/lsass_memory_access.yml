@@ -1,0 +1,136 @@
+title: Suspicious LSASS Memory Access via OpenProcess
+id: 9e8f2a3b-1c4d-5e6f-7a8b-9c0d1e2f3a4b
+status: stable
+description: |
+    Detects processes accessing LSASS memory with suspicious access rights.
+    LSASS (Local Security Authority Subsystem Service) stores credential 
+    material in memory and is a primary target for credential theft tools
+    like Mimikatz, ProcDump, and comsvcs.dll MiniDump technique.
+    
+    This rule focuses on the OpenProcess API call with access rights that
+    enable memory reading (PROCESS_VM_READ, PROCESS_QUERY_INFORMATION).
+references:
+    - https://attack.mitre.org/techniques/T1003/001/
+    - https://www.microsoft.com/security/blog/2022/10/05/detecting-and-preventing-lsass-credential-dumping-attacks/
+    - https://github.com/GhostPack/Rubeus
+    - https://github.com/gentilkiwi/mimikatz
+author: Detection Engineering Team
+date: 2024/01/15
+modified: 2024/03/20
+tags:
+    - attack.credential_access
+    - attack.t1003
+    - attack.t1003.001
+logsource:
+    category: process_access
+    product: windows
+detection:
+    # Primary selection: Any process accessing lsass.exe
+    selection_target:
+        TargetImage|endswith: '\lsass.exe'
+    
+    # Selection for suspicious access rights
+    # 0x1010 = PROCESS_VM_READ | PROCESS_QUERY_INFORMATION
+    # 0x1410 = PROCESS_VM_READ | PROCESS_QUERY_INFORMATION | PROCESS_VM_WRITE
+    # 0x1F1FFF = PROCESS_ALL_ACCESS
+    selection_access_rights:
+        GrantedAccess|contains:
+            - '0x1010'
+            - '0x1410'
+            - '0x1F1FFF'
+            - '0x1FFFFF'
+            - '0x143A'
+    
+    # Exclusions for known legitimate tools
+    # CRITICAL: These must be tuned for your environment
+    filter_av_products:
+        SourceImage|contains:
+            - '\MsMpEng.exe'          # Windows Defender
+            - '\MsSense.exe'          # Microsoft Defender ATP
+            - '\SenseIR.exe'          # Microsoft Defender ATP
+            - '\csfalconservice.exe'  # CrowdStrike
+            - '\cb.exe'               # Carbon Black
+    
+    filter_system_processes:
+        SourceImage|startswith:
+            - 'C:\Windows\System32\svchost.exe'
+            - 'C:\Windows\System32\wininit.exe'
+            - 'C:\Windows\System32\lsass.exe'   # LSASS accessing itself
+            - 'C:\Windows\System32\csrss.exe'
+    
+    filter_wmiprvse:
+        SourceImage|endswith: '\WmiPrvSE.exe'
+        SourceImage|startswith: 'C:\Windows\System32\'
+    
+    # Additional filters for backup and management tools
+    filter_backup_tools:
+        SourceImage|contains:
+            - '\VeeamAgent'
+            - '\Veritas'
+            - '\CommVault'
+    
+    condition: selection_target and selection_access_rights and not (filter_av_products or filter_system_processes or filter_wmiprvse or filter_backup_tools)
+
+# Severity based on the reliability of this detection pattern
+# High = strong indicator of compromise with low false positive rate
+level: high
+
+falsepositives:
+    - Security products performing memory scanning
+    - Backup solutions that interact with system processes
+    - Legitimate admin tools like Process Monitor, Process Explorer
+    - Vulnerability scanners during authenticated scans
+    - Custom enterprise monitoring solutions (add to filter_backup_tools)
+
+# Custom organizational fields - these demonstrate enterprise maturity
+custom:
+    # Lifecycle state controls CI/CD requirements
+    lifecycle: production
+    
+    # Confidence rating affects coverage scoring
+    # High = reliable signal, minimal tuning needed
+    # Medium = useful but requires environment-specific tuning
+    # Low = high FP rate or incomplete coverage
+    confidence: high
+    
+    # Expected false positive rate after tuning
+    false_positive_rate: low
+    
+    # Investigation guidance for SOC analysts
+    investigation_steps: |
+        1. Identify the source process (SourceImage) - is it expected?
+        2. Check if source process is signed and by whom
+        3. Look for process creation events leading to this access
+        4. Check for network connections from the source process
+        5. Review any file writes by the source process (credential dumps)
+        6. Correlate with other credential access techniques
+    
+    # Tuning notes for environment-specific customization
+    tuning_notes: |
+        This rule requires environment-specific tuning:
+        
+        1. FIRST DEPLOYMENT: Run in test/log-only mode for 7 days
+        2. Identify legitimate processes accessing LSASS in your environment
+        3. Add verified legitimate tools to appropriate filter sections
+        4. Document each exclusion with ticket/change request reference
+        
+        Common additions:
+        - Endpoint management agents (SCCM, Intune, etc.)
+        - PAM solutions (CyberArk, BeyondTrust, etc.)
+        - Custom monitoring scripts (verify and whitelist by hash)
+    
+    # MITRE ATT&CK context for analyst reference
+    mitre_context:
+        technique: T1003.001
+        tactic: Credential Access
+        data_sources:
+            - Process: Process Access
+        platforms:
+            - Windows
+        
+    # Owner/maintainer for this rule
+    owner: detection-engineering@example.com
+    
+    # SLA for rule updates when new evasions are discovered
+    review_frequency: quarterly
+    last_reviewed: 2024-03-20

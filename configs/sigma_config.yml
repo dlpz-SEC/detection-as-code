@@ -1,0 +1,116 @@
+# Sigma Configuration
+#
+# Field mappings and log source definitions for SIEM conversion.
+# This file standardizes how Sigma fields map to your SIEM's field names.
+#
+# Used by: sigma convert --config configs/sigma_config.yml
+
+title: Enterprise Sigma Configuration
+order: 100  # Higher = higher priority in field resolution
+
+backends:
+  splunk:
+    # Splunk-specific field mappings
+    # Maps generic Sigma fields to your Splunk index field names
+    
+    fieldmappings:
+      # Process creation fields (Sysmon Event ID 1)
+      Image: process_path
+      ParentImage: parent_process_path
+      CommandLine: command_line
+      ParentCommandLine: parent_command_line
+      User: user
+      ProcessId: process_id
+      ParentProcessId: parent_process_id
+      CurrentDirectory: current_directory
+      IntegrityLevel: integrity_level
+      Hashes: file_hash
+      
+      # Process access fields (Sysmon Event ID 10)
+      SourceImage: source_process_path
+      TargetImage: target_process_path
+      GrantedAccess: granted_access
+      CallTrace: call_trace
+      
+      # Network connection fields (Sysmon Event ID 3)
+      DestinationIp: dest_ip
+      DestinationPort: dest_port
+      SourceIp: src_ip
+      SourcePort: src_port
+      Protocol: protocol
+      
+      # File creation fields (Sysmon Event ID 11)
+      TargetFilename: file_path
+      
+      # Registry fields (Sysmon Event ID 12, 13, 14)
+      TargetObject: registry_path
+      Details: registry_value
+      
+    # Log source mappings - which Splunk index/sourcetype to query
+    logsources:
+      process_creation:
+        index: windows
+        source: XmlWinEventLog:Microsoft-Windows-Sysmon/Operational
+        EventID: 1
+        
+      process_access:
+        index: windows
+        source: XmlWinEventLog:Microsoft-Windows-Sysmon/Operational
+        EventID: 10
+        
+      network_connection:
+        index: windows
+        source: XmlWinEventLog:Microsoft-Windows-Sysmon/Operational
+        EventID: 3
+        
+      file_creation:
+        index: windows
+        source: XmlWinEventLog:Microsoft-Windows-Sysmon/Operational
+        EventID: 11
+        
+      registry_event:
+        index: windows
+        source: XmlWinEventLog:Microsoft-Windows-Sysmon/Operational
+        EventID:
+          - 12
+          - 13
+          - 14
+          
+      powershell:
+        index: windows
+        source: XmlWinEventLog:Microsoft-Windows-PowerShell/Operational
+        
+      security:
+        index: windows
+        source: XmlWinEventLog:Security
+        
+  microsoft365defender:
+    # Microsoft Sentinel / M365 Defender field mappings
+    fieldmappings:
+      Image: InitiatingProcessFileName
+      ParentImage: InitiatingProcessParentFileName
+      CommandLine: ProcessCommandLine
+      User: AccountName
+      SourceImage: InitiatingProcessFileName
+      TargetImage: FileName
+      
+    logsources:
+      process_creation:
+        table: DeviceProcessEvents
+        
+      process_access:
+        table: DeviceEvents
+        ActionType: ProcessAccess
+        
+      network_connection:
+        table: DeviceNetworkEvents
+
+# Detection modifiers
+detection:
+  # How to handle case sensitivity
+  case_insensitive: true
+  
+  # Wildcard translation
+  wildcards:
+    - "*"  # Standard wildcard
+    - "?"  # Single character (less common)

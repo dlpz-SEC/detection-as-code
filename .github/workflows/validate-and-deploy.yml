@@ -1,0 +1,373 @@
+# Detection-as-Code CI/CD Pipeline
+# 
+# This workflow validates Sigma rules, converts them to SIEM-specific queries,
+# runs behavioral tests, and generates coverage reports.
+#
+# ARCHITECTURE DECISION: Jobs are separated by concern to enable:
+# - Parallel execution where possible
+# - Clear failure attribution (which stage failed?)
+# - Selective re-runs without full pipeline execution
+# - Future extensibility (add SIEM-specific deployment jobs)
+
+name: Detection Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'rules/**'
+      - 'tests/**'
+      - 'scripts/**'
+      - '.github/workflows/validate-and-deploy.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'rules/**'
+      - 'tests/**'
+      - 'scripts/**'
+  workflow_dispatch:  # Manual trigger for full pipeline runs
+
+# Cancel in-progress runs on new commits to same branch
+# Prevents resource waste on rapid iteration
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.11'
+  # Target SIEMs for conversion - extend this list as needed
+  TARGET_SIEMS: 'splunk,microsoft365defender'
+
+jobs:
+  # ============================================================================
+  # STAGE 1: Schema Validation
+  # Purpose: Catch malformed YAML and missing required fields FAST
+  # This runs first because it's the cheapest check - fail early, fail cheap
+  # ============================================================================
+  validate-schema:
+    name: Schema Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: 'scripts/requirements.txt'
+          
+      - name: Install dependencies
+        run: |
+          pip install -r scripts/requirements.txt
+          pip install sigma-cli
+          
+      - name: Validate rule schema
+        run: |
+          python scripts/validate_rules.py \
+            --rules-dir rules/ \
+            --strict \
+            --output validation-report.json
+            
+      - name: Upload validation report
+        uses: actions/upload-artifact@v4
+        if: always()  # Upload even on failure for debugging
+        with:
+          name: validation-report
+          path: validation-report.json
+          retention-days: 30
+
+  # ============================================================================
+  # STAGE 2: Linting
+  # Purpose: Catch logic errors, missing metadata, best practice violations
+  # Runs after schema validation - no point linting invalid YAML
+  # ============================================================================
+  lint-rules:
+    name: Rule Linting
+    runs-on: ubuntu-latest
+    needs: validate-schema
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: 'scripts/requirements.txt'
+          
+      - name: Install sigma-cli
+        run: pip install sigma-cli
+        
+      - name: Lint all rules
+        run: |
+          # sigma check validates:
+          # - Correct logsource configuration
+          # - Valid detection logic
+          # - Field name validity
+          # 
+          # --fail-on-error ensures CI fails on any rule issues
+          # --validation-config can specify additional checks
+          
+          echo "=== Linting Rules ==="
+          find rules/ -name "*.yml" -type f | while read rule; do
+            echo "Checking: $rule"
+            sigma check "$rule" || exit 1
+          done
+          
+      - name: Check for required MITRE tags
+        run: |
+          # Custom check: All production rules MUST have MITRE ATT&CK tags
+          # This is enforced separately because sigma check doesn't require it
+          
+          python -c "
+          import yaml
+          import sys
+          from pathlib import Path
+          
+          errors = []
+          for rule_path in Path('rules').rglob('*.yml'):
+              with open(rule_path) as f:
+                  rule = yaml.safe_load(f)
+              
+              # Skip draft rules - they're work in progress
+              lifecycle = rule.get('custom', {}).get('lifecycle', 'draft')
+              if lifecycle == 'draft':
+                  continue
+              
+              tags = rule.get('tags', [])
+              mitre_tags = [t for t in tags if t.startswith('attack.')]
+              
+              if not mitre_tags:
+                  errors.append(f'{rule_path}: No MITRE ATT&CK tags found (lifecycle: {lifecycle})')
+              
+              # Production rules need technique IDs, not just tactics
+              if lifecycle == 'production':
+                  technique_tags = [t for t in mitre_tags if t.startswith('attack.t')]
+                  if not technique_tags:
+                      errors.append(f'{rule_path}: Production rule missing technique ID (only has tactic tags)')
+          
+          if errors:
+              print('MITRE tagging errors:')
+              for e in errors:
+                  print(f'  - {e}')
+              sys.exit(1)
+          else:
+              print('All non-draft rules have proper MITRE ATT&CK tags')
+          "
+
+  # ============================================================================
+  # STAGE 3: SIEM Conversion
+  # Purpose: Convert validated rules to target SIEM query languages
+  # Uses matrix strategy for parallel conversion to multiple SIEMs
+  # ============================================================================
+  convert-rules:
+    name: Convert to ${{ matrix.siem }}
+    runs-on: ubuntu-latest
+    needs: lint-rules
+    
+    strategy:
+      fail-fast: false  # Continue other conversions if one fails
+      matrix:
+        siem: [splunk, microsoft365defender]
+        # Add more targets: elastic_lucene, qradar, etc.
+        
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          
+      - name: Install sigma-cli with backends
+        run: |
+          pip install sigma-cli
+          # Install backend-specific plugins
+          # These provide the actual query language converters
+          pip install pysigma-backend-splunk
+          pip install pysigma-backend-microsoft365defender
+          
+      - name: Convert rules to ${{ matrix.siem }}
+        run: |
+          mkdir -p output/${{ matrix.siem }}
+          
+          # Convert all rules, preserving directory structure
+          find rules/ -name "*.yml" -type f | while read rule; do
+            # Create output path mirroring input structure
+            relative_path="${rule#rules/}"
+            output_dir="output/${{ matrix.siem }}/$(dirname $relative_path)"
+            output_file="$output_dir/$(basename $rule .yml).txt"
+            
+            mkdir -p "$output_dir"
+            
+            echo "Converting: $rule -> $output_file"
+            sigma convert \
+              --target ${{ matrix.siem }} \
+              --pipeline ${{ matrix.siem }} \
+              "$rule" > "$output_file" 2>&1 || {
+                echo "ERROR converting $rule"
+                cat "$output_file"
+                exit 1
+              }
+          done
+          
+      - name: Upload converted rules
+        uses: actions/upload-artifact@v4
+        with:
+          name: converted-rules-${{ matrix.siem }}
+          path: output/${{ matrix.siem }}/
+          retention-days: 90
+
+  # ============================================================================
+  # STAGE 4: Behavioral Testing
+  # Purpose: Verify rules detect true positives and don't fire on benign samples
+  # This is the critical differentiator from basic DaC implementations
+  # ============================================================================
+  test-detections:
+    name: Behavioral Tests
+    runs-on: ubuntu-latest
+    needs: convert-rules
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: 'scripts/requirements.txt'
+          
+      - name: Download converted rules
+        uses: actions/download-artifact@v4
+        with:
+          name: converted-rules-splunk
+          path: output/splunk/
+          
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+        
+      - name: Run behavioral tests
+        run: |
+          # This script:
+          # 1. Loads converted Splunk queries
+          # 2. Runs them against test log samples (JSON/CSV format)
+          # 3. Verifies true_positive samples trigger detection
+          # 4. Verifies benign samples do NOT trigger detection
+          #
+          # NOTE: This uses a mock SIEM evaluator, not actual Splunk.
+          # For production, you'd connect to a Splunk instance or use
+          # Splunk's SDK for local query evaluation.
+          
+          python scripts/test_detections.py \
+            --queries-dir output/splunk/ \
+            --samples-dir tests/samples/ \
+            --output test-results.json \
+            --fail-on-fp  # Fail if any false positives detected
+            
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: test-results.json
+          retention-days: 30
+
+  # ============================================================================
+  # STAGE 5: Coverage Analysis
+  # Purpose: Generate MITRE ATT&CK coverage report with confidence weighting
+  # Only runs on main branch to avoid PR noise
+  # ============================================================================
+  generate-coverage:
+    name: Coverage Report
+    runs-on: ubuntu-latest
+    needs: test-detections
+    if: github.ref == 'refs/heads/main'  # Only on main branch
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Need write access to push coverage updates
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: 'scripts/requirements.txt'
+          
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+        
+      - name: Download test results
+        uses: actions/download-artifact@v4
+        with:
+          name: test-results
+          path: ./
+          
+      - name: Generate coverage report
+        run: |
+          python scripts/generate_coverage.py \
+            --rules-dir rules/ \
+            --test-results test-results.json \
+            --output docs/COVERAGE.md \
+            --format markdown \
+            --include-heatmap
+            
+      - name: Generate ATT&CK Navigator layer
+        run: |
+          # Also output Navigator JSON for visual representation
+          python scripts/generate_coverage.py \
+            --rules-dir rules/ \
+            --test-results test-results.json \
+            --output docs/attack-navigator-layer.json \
+            --format navigator
+            
+      - name: Commit coverage updates
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add docs/COVERAGE.md docs/attack-navigator-layer.json
+          git diff --staged --quiet || git commit -m "docs: update MITRE ATT&CK coverage report [skip ci]"
+          git push
+
+  # ============================================================================
+  # STAGE 6: Deployment (Optional - Uncomment when ready)
+  # Purpose: Deploy validated rules to target SIEMs
+  # This would be environment-specific - example shows Splunk deployment
+  # ============================================================================
+  # deploy-to-splunk:
+  #   name: Deploy to Splunk
+  #   runs-on: ubuntu-latest
+  #   needs: test-detections
+  #   if: github.ref == 'refs/heads/main'
+  #   environment: production  # Requires approval
+  #   
+  #   steps:
+  #     - name: Download converted rules
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         name: converted-rules-splunk
+  #         path: output/splunk/
+  #         
+  #     - name: Deploy to Splunk via REST API
+  #       env:
+  #         SPLUNK_HOST: ${{ secrets.SPLUNK_HOST }}
+  #         SPLUNK_TOKEN: ${{ secrets.SPLUNK_TOKEN }}
+  #       run: |
+  #         # Deploy using Splunk REST API
+  #         # This creates/updates saved searches
+  #         python scripts/deploy_splunk.py \
+  #           --queries-dir output/splunk/ \
+  #           --host "$SPLUNK_HOST" \
+  #           --token "$SPLUNK_TOKEN" \
+  #           --app "detection_rules"
