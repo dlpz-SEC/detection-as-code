@@ -2,21 +2,11 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/Detection--as--Code-Sigma-2563EB?style=for-the-badge&logo=databricks&logoColor=white" />
-  <img src="https://img.shields.io/badge/CI%2FCD-Validate%20%26%20Test-111827?style=for-the-badge&logo=githubactions&logoColor=white" />
+  <img src="https://img.shields.io/badge/CI%2FCD-Gates-111827?style=for-the-badge&logo=githubactions&logoColor=white" />
   <img src="https://img.shields.io/badge/Behavioral%20Tests-TP%20%7C%20Benign-7C3AED?style=for-the-badge&logo=pytest&logoColor=white" />
-</p>
-<p align="center">
-  <img src="https://img.shields.io/badge/MITRE-ATT%26CK%20Coverage-DC2626?style=for-the-badge&logo=mitre&logoColor=white" />
+  <img src="https://img.shields.io/badge/MITRE-ATT%26CK-DC2626?style=for-the-badge&logo=mitre&logoColor=white" />
   <img src="https://img.shields.io/badge/SIEM%20Outputs-SPL%20%7C%20KQL%20%7C%20ES-0A66C2?style=for-the-badge&logo=splunk&logoColor=white" />
 </p>
-<p align="center">
-  <img src="https://img.shields.io/badge/Python-Automation-22C55E?style=for-the-badge&logo=python&logoColor=white" />
-  <img src="https://img.shields.io/badge/Sigma-Rules-2563EB?style=for-the-badge&logo=yaml&logoColor=white" />
-  <img src="https://img.shields.io/badge/GitHub%20Actions-CI-111827?style=for-the-badge&logo=githubactions&logoColor=white" />
-  <img src="https://img.shields.io/badge/Pytest-Testing-7C3AED?style=for-the-badge&logo=pytest&logoColor=white" />
-  <img src="https://img.shields.io/badge/Sigma--CLI-Conversion-F59E0B?style=for-the-badge&logo=gnubash&logoColor=white" />
-</p>
-
 
 Enterprise-grade CI/CD pipeline for managing Sigma detection rules with automated validation, testing, and MITRE ATT&CK coverage tracking.
 
