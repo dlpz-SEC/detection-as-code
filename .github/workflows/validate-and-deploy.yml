@@ -171,10 +171,9 @@ jobs:
     needs: lint-rules
     
     strategy:
-      fail-fast: false  # Continue other conversions if one fails
+      fail-fast: false
       matrix:
-        siem: [splunk, microsoft365defender]
-        # Add more targets: elastic_lucene, qradar, etc.
+        siem: [splunk, kusto]
         
     steps:
       - name: Checkout repository
