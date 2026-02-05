@@ -12,7 +12,7 @@ Enterprise-grade CI/CD pipeline for managing Sigma detection rules with automate
 
 ## Why This Exists
 
-Most "DaC" portfolio projects are glorified file watchers. This pipeline demonstrates actual detection engineering maturity:
+Most Detection-as-Code portfolio projects stop at basic file monitoring. This pipeline demonstrates real detection engineering maturity through structured validation, testing, and coverage analysis.
 
 - **Rule Lifecycle Management**: Rules progress through `draft` → `experimental` → `production` → `deprecated` states
 - **Behavioral Testing**: Rules are validated against curated log samples containing true positives AND benign activity
