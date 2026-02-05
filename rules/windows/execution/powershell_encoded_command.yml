@@ -73,7 +73,7 @@ detection:
         CommandLine|contains: 'Start-DscConfiguration'
     
     condition: >
-        selection_powershell and selection_encoded 
+        selection_powershell and selection_encoded and selection_suspicious_combo
         and not (filter_sccm or filter_azure or filter_intune or filter_dsc)
 
 level: medium
