@@ -39,6 +39,7 @@ output/
 *.json
 !tests/samples/**/*.json  # Keep test samples
 !configs/*.json           # Keep config files
+!docs/*.json              # Keep coverage outputs
 
 # Local testing artifacts
 validation-report.json
