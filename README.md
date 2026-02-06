@@ -138,6 +138,10 @@ Coverage is measured with confidence weighting:
 
 A technique with three "low confidence" rules scores lower than one "high confidence" rule.
 
+## Development
+
+This project was built with AI-assisted drafting and scaffolding to accelerate iteration. All code was reviewed, tested, and modified by hand. Final logic, signal weights, safety gates, and architectural decisions are deterministic and human-owned.
+
 ## License
 
 MIT - Use this as a template for your own detection engineering portfolio.
