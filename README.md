@@ -143,4 +143,4 @@ This project was built with AI-assisted development. All rules were validated lo
 
 ## License
 
-MIT - Use this as a template for your own detection engineering portfolio.
+MIT 
