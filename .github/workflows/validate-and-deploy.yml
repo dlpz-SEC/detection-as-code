@@ -238,14 +238,20 @@ jobs:
             mkdir -p "$output_dir"
             
             echo "Converting: $rule -> $output_file"
+            # Query file captures stdout ONLY. sigma-cli writes a "Parsing
+            # Sigma rules" progress banner to stderr on every successful run,
+            # so the old `2>&1` here prepended that banner to the SPL and
+            # corrupted the query the behavioral-test evaluator has to parse.
+            # Send stderr to a sidecar and surface it only on failure.
             sigma convert \
               --target ${{ matrix.siem }} \
               --pipeline sysmon \
-              "$rule" > "$output_file" 2>&1 || {
+              "$rule" > "$output_file" 2>"$output_file.err" || {
                 echo "ERROR converting $rule"
-                cat "$output_file"
+                cat "$output_file.err"
                 exit 1
               }
+            rm -f "$output_file.err"
           done
           
       - name: Upload converted rules
@@ -300,6 +306,7 @@ jobs:
           python scripts/test_detections.py \
             --queries-dir output/splunk/ \
             --samples-dir tests/samples/ \
+            --rules-dir rules/ \
             --output test-results.json \
             --fail-on-fp  # Fail if any false positives detected
             
