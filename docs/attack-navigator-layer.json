@@ -1,0 +1,139 @@
+{
+  "name": "Detection Coverage",
+  "version": "4.5",
+  "domain": "enterprise-attack",
+  "description": "Detection coverage as of 2026-07-12",
+  "filters": {
+    "platforms": [
+      "Windows",
+      "Linux",
+      "macOS"
+    ]
+  },
+  "sorting": 0,
+  "layout": {
+    "layout": "side",
+    "showID": true,
+    "showName": true
+  },
+  "hideDisabled": false,
+  "techniques": [
+    {
+      "techniqueID": "T1059",
+      "score": 60,
+      "color": "#f1c40f",
+      "comment": "Rules: 1, Confidence: medium",
+      "enabled": true,
+      "metadata": [
+        {
+          "name": "rule_count",
+          "value": "1"
+        },
+        {
+          "name": "confidence",
+          "value": "medium"
+        }
+      ]
+    },
+    {
+      "techniqueID": "T1059.001",
+      "score": 60,
+      "color": "#f1c40f",
+      "comment": "Rules: 1, Confidence: medium",
+      "enabled": true,
+      "metadata": [
+        {
+          "name": "rule_count",
+          "value": "1"
+        },
+        {
+          "name": "confidence",
+          "value": "medium"
+        }
+      ]
+    },
+    {
+      "techniqueID": "T1027",
+      "score": 60,
+      "color": "#f1c40f",
+      "comment": "Rules: 1, Confidence: medium",
+      "enabled": true,
+      "metadata": [
+        {
+          "name": "rule_count",
+          "value": "1"
+        },
+        {
+          "name": "confidence",
+          "value": "medium"
+        }
+      ]
+    },
+    {
+      "techniqueID": "T1003",
+      "score": 100,
+      "color": "#2ecc71",
+      "comment": "Rules: 1, Confidence: high",
+      "enabled": true,
+      "metadata": [
+        {
+          "name": "rule_count",
+          "value": "1"
+        },
+        {
+          "name": "confidence",
+          "value": "high"
+        }
+      ]
+    },
+    {
+      "techniqueID": "T1003.001",
+      "score": 100,
+      "color": "#2ecc71",
+      "comment": "Rules: 1, Confidence: high",
+      "enabled": true,
+      "metadata": [
+        {
+          "name": "rule_count",
+          "value": "1"
+        },
+        {
+          "name": "confidence",
+          "value": "high"
+        }
+      ]
+    }
+  ],
+  "gradient": {
+    "colors": [
+      "#e74c3c",
+      "#f1c40f",
+      "#2ecc71"
+    ],
+    "minValue": 0,
+    "maxValue": 100
+  },
+  "legendItems": [
+    {
+      "label": "High Confidence (80-100)",
+      "color": "#2ecc71"
+    },
+    {
+      "label": "Medium Confidence (50-79)",
+      "color": "#f1c40f"
+    },
+    {
+      "label": "Low Confidence (1-49)",
+      "color": "#e67e22"
+    },
+    {
+      "label": "No Coverage",
+      "color": "#e74c3c"
+    }
+  ],
+  "metadata": [],
+  "showTacticRowBackground": true,
+  "tacticRowBackground": "#dddddd",
+  "selectTechniquesAcrossTactics": true,
+  "selectSubtechniquesWithParent": false
+}
