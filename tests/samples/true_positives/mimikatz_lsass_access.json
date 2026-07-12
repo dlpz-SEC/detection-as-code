@@ -1,0 +1,19 @@
+{
+  "name": "Mimikatz LSASS Access",
+  "description": "Mimikatz opens a handle to lsass.exe with PROCESS_VM_READ | PROCESS_QUERY_INFORMATION (GrantedAccess 0x1010) to dump credential material from memory. Sysmon Event ID 10 (ProcessAccess). Source process is an unsigned binary in a user-writable temp path, so none of the rule's AV/system/backup exclusions apply. Must fire the LSASS memory access rule.",
+  "type": "true_positive",
+  "technique_id": "T1003.001",
+  "events": [
+    {
+      "EventID": 10,
+      "UtcTime": "2024-03-21 14:07:32.114",
+      "SourceImage": "C:\\Users\\jdoe\\AppData\\Local\\Temp\\mimikatz.exe",
+      "SourceProcessId": 6612,
+      "TargetImage": "C:\\Windows\\System32\\lsass.exe",
+      "TargetProcessId": 712,
+      "GrantedAccess": "0x1010",
+      "CallTrace": "C:\\Windows\\SYSTEM32\\ntdll.dll+9c534|C:\\Windows\\System32\\KERNELBASE.dll+2b1ce|C:\\Users\\jdoe\\AppData\\Local\\Temp\\mimikatz.exe+a1b2c",
+      "User": "CORP\\jdoe"
+    }
+  ]
+}
