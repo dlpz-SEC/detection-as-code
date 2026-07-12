@@ -18,6 +18,7 @@ on:
       - 'rules/**'
       - 'tests/**'
       - 'scripts/**'
+      - 'pytest.ini'
       - '.github/workflows/validate-and-deploy.yml'
   pull_request:
     branches: [main]
@@ -25,6 +26,8 @@ on:
       - 'rules/**'
       - 'tests/**'
       - 'scripts/**'
+      - 'pytest.ini'
+      - '.github/workflows/validate-and-deploy.yml'
   workflow_dispatch:  # Manual trigger for full pipeline runs
 
 # Cancel in-progress runs on new commits to same branch
@@ -80,7 +83,34 @@ jobs:
           retention-days: 30
 
   # ============================================================================
-  # STAGE 2: Linting
+  # STAGE 2: Unit Tests
+  # Purpose: Validate pipeline tooling (scripts/) with pytest
+  # Root job - runs in parallel with schema validation. A failure here fails
+  # the overall check, so tooling regressions gate PRs.
+  # ============================================================================
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: 'scripts/requirements.txt'
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Run unit tests
+        run: python -m pytest tests/ -v
+
+  # ============================================================================
+  # STAGE 3: Linting
   # Purpose: Catch logic errors, missing metadata, best practice violations
   # Runs after schema validation - no point linting invalid YAML
   # ============================================================================
@@ -161,7 +191,7 @@ jobs:
           "
 
   # ============================================================================
-  # STAGE 3: SIEM Conversion
+  # STAGE 4: SIEM Conversion
   # Purpose: Convert validated rules to target SIEM query languages
   # Uses matrix strategy for parallel conversion to multiple SIEMs
   # ============================================================================
@@ -226,7 +256,7 @@ jobs:
           retention-days: 90
 
   # ============================================================================
-  # STAGE 4: Behavioral Testing
+  # STAGE 5: Behavioral Testing
   # Purpose: Verify rules detect true positives and don't fire on benign samples
   # This is the critical differentiator from basic DaC implementations
   # ============================================================================
@@ -282,7 +312,7 @@ jobs:
           retention-days: 30
 
   # ============================================================================
-  # STAGE 5: Coverage Analysis
+  # STAGE 6: Coverage Analysis
   # Purpose: Generate MITRE ATT&CK coverage report with confidence weighting
   # Only runs on main branch to avoid PR noise
   # ============================================================================
@@ -291,24 +321,27 @@ jobs:
     runs-on: ubuntu-latest
     needs: test-detections
     if: github.ref == 'refs/heads/main'  # Only on main branch
+    permissions:
+      contents: write  # Required to push coverage updates
     
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          # Need write access to push coverage updates
+          ref: main        # push target; full history so rebase-before-push works
+          fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-          
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
           cache-dependency-path: 'scripts/requirements.txt'
-          
+
       - name: Install dependencies
         run: pip install -r scripts/requirements.txt
-        
+
       - name: Download test results
         uses: actions/download-artifact@v4
         with:
@@ -338,9 +371,68 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add -f docs/COVERAGE.md docs/attack-navigator-layer.json
+          if git diff --staged --quiet; then
+            echo "Coverage unchanged - nothing to commit"
+          else
+            git commit -m "ci: update coverage report [skip ci]"
+            git pull --rebase origin main
+            git push
+          fi
 
   # ============================================================================
-  # STAGE 6: Deployment (Optional - Uncomment when ready)
+  # STAGE 7: Rule Manifest Export
+  # Purpose: Publish machine-readable manifest of production rules for ADTE
+  # (Autonomous Detection Triage Engine). Commits docs/rule_manifest.json
+  # back to the repo when rule content changes.
+  # ============================================================================
+  export-manifest:
+    name: Rule Manifest Export
+    runs-on: ubuntu-latest
+    # Gate on unit-tests too: the manifest is ADTE's contract, so never publish
+    # it from a commit where the exporter's own test suite is red.
+    needs: [generate-coverage, unit-tests]
+    if: github.ref == 'refs/heads/main'  # Only on main branch
+    permissions:
+      contents: write  # Required to push the manifest commit
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main        # pick up the coverage commit pushed by the previous job
+          fetch-depth: 0   # full history so rebase-before-push works
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: 'scripts/requirements.txt'
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Export rule manifest
+        run: |
+          python scripts/export_manifest.py \
+            --rules-dir rules/ \
+            --output docs/rule_manifest.json
+
+      - name: Commit manifest if changed
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add docs/rule_manifest.json
+          if git diff --staged --quiet; then
+            echo "Manifest unchanged - nothing to commit"
+          else
+            git commit -m "ci: update rule manifest [skip ci]"
+            git pull --rebase origin main
+            git push
+          fi
+
+  # ============================================================================
+  # STAGE 8: Deployment (Optional - Uncomment when ready)
   # Purpose: Deploy validated rules to target SIEMs
   # This would be environment-specific - example shows Splunk deployment
   # ============================================================================
