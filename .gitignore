@@ -37,9 +37,12 @@ Thumbs.db
 # Pipeline outputs (regenerated on each run)
 output/
 *.json
-!tests/samples/**/*.json  # Keep test samples
-!configs/*.json           # Keep config files
-!docs/*.json              # Keep coverage outputs
+# Keep test samples
+!tests/samples/**/*.json
+# Keep config files
+!configs/*.json
+# Keep coverage outputs and rule manifest
+!docs/*.json
 
 # Local testing artifacts
 validation-report.json

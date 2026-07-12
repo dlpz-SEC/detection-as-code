@@ -36,6 +36,8 @@ detection-as-code/
 │       ├── execution/
 │       └── persistence/
 ├── tests/
+│   ├── conftest.py                    # Makes scripts/ importable in tests
+│   ├── test_export_manifest.py        # Pytest suite for the manifest exporter
 │   └── samples/
 │       ├── true_positives/            # Log samples that SHOULD trigger rules
 │       └── benign/                    # Log samples that should NOT trigger
@@ -43,13 +45,18 @@ detection-as-code/
 │   ├── validate_rules.py              # Schema + custom field validation
 │   ├── generate_coverage.py           # MITRE ATT&CK coverage analysis
 │   ├── test_detections.py             # Behavioral testing against samples
+│   ├── export_manifest.py             # Production-rule manifest for ADTE
+│   ├── conftest.py                    # Excludes test_detections.py from pytest
 │   └── requirements.txt
 ├── configs/
 │   ├── sigma_config.yml               # Field mappings for SIEM conversion
 │   └── coverage_config.yml            # MITRE technique weights/priorities
 ├── docs/
 │   ├── COVERAGE.md                    # Auto-generated coverage report
+│   ├── rule_manifest.json             # Auto-generated production-rule manifest
+│   ├── rule_manifest_schema.md        # Manifest schema / ADTE contract
 │   └── RULE_STANDARD.md               # Rule authoring guidelines
+├── pytest.ini                         # Pytest config (testpaths = tests)
 └── README.md
 ```
 
@@ -79,26 +86,31 @@ custom:
 ### 1. Schema Validation
 Validates all rules against the official Sigma specification plus custom required fields.
 
-### 2. Linting  
+### 2. Unit Tests
+Runs the pytest suite (`tests/`) against the pipeline tooling in `scripts/`. Runs in parallel with schema validation and gates PRs — a tooling regression fails the check before rules are ever converted or published.
+
+### 3. Linting
 Checks for:
 - Missing MITRE ATT&CK tags
 - Invalid log source configurations
 - Deprecated field usage
 - Detection logic errors (impossible conditions, etc.)
 
-### 3. SIEM Conversion
-Converts rules to target SIEM query languages:
+### 4. SIEM Conversion
+Converts rules to target SIEM query languages via a parallel matrix:
 - Splunk SPL
-- Microsoft Sentinel KQL
-- Elastic Query DSL
+- Microsoft Sentinel / Defender KQL (`kusto`)
 
-### 4. Behavioral Testing
+### 5. Behavioral Testing
 Runs converted queries against test samples to verify:
 - True positives are detected (sensitivity)
 - Benign samples don't trigger (specificity)
 
-### 5. Coverage Analysis
-Generates MITRE ATT&CK coverage report with confidence weighting.
+### 6. Coverage Analysis
+Generates a MITRE ATT&CK coverage report with confidence weighting (main branch only). Commits `docs/COVERAGE.md` and the ATT&CK Navigator layer back to the repo.
+
+### 7. Rule Manifest Export
+Exports every production rule to `docs/rule_manifest.json` for downstream consumption by ADTE (main branch only, gated on the unit tests). See [ADTE Integration](#adte-integration).
 
 ## Quick Start
 
@@ -106,6 +118,9 @@ Generates MITRE ATT&CK coverage report with confidence weighting.
 # Install dependencies
 pip install -r scripts/requirements.txt
 pip install sigma-cli
+
+# Run the tooling unit tests
+python -m pytest
 
 # Validate a single rule
 sigma check rules/windows/credential_access/lsass_access.yml
@@ -115,7 +130,18 @@ sigma convert -t splunk rules/windows/credential_access/lsass_access.yml
 
 # Generate coverage report
 python scripts/generate_coverage.py --output docs/COVERAGE.md
+
+# Export the production-rule manifest for ADTE
+python scripts/export_manifest.py --rules-dir rules --output docs/rule_manifest.json
 ```
+
+## ADTE Integration
+
+This pipeline publishes a machine-readable manifest of production rules for [ADTE](https://github.com/dlpz-SEC) (Autonomous Detection Triage Engine), which maps triaged incidents back to detection coverage, confidence weighting, and tuning guidance.
+
+- **Artifact:** `docs/rule_manifest.json` — every `lifecycle: production` rule with its ATT&CK techniques, `confidence_weight`, false-positive rate, and tuning notes.
+- **Contract:** documented in [`docs/rule_manifest_schema.md`](docs/rule_manifest_schema.md). ADTE joins incidents to detections on the rule `id`.
+- **Freshness:** regenerated on every push to `main`; committed back only when rule content changes, so `generated_at` is a stable content-change watermark rather than a per-run timestamp.
 
 ## Adding New Rules
 
