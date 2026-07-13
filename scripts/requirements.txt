@@ -18,6 +18,11 @@ typing-extensions>=4.0
 # Testing - pytest suite in tests/
 pytest>=8.0,<10.0
 
+# Wazuh Manager API client (functional Tier-2 testing)
+# requests floor pinned past CVE-2024-47081 (.netrc credential leak)
+requests>=2.32.4,<3.0
+python-dotenv>=1.0,<2.0
+
 # Note: sigma-cli and its backends are installed via pip directly in CI:
 #   pip install sigma-cli
 #   pip install pysigma-backend-splunk
