@@ -102,9 +102,9 @@ Converts rules to target SIEM query languages via a parallel matrix:
 - Microsoft Sentinel / Defender KQL (`kusto`)
 
 ### 5. Behavioral Testing
-Runs converted queries against test samples to verify:
-- True positives are detected (sensitivity)
-- Benign samples don't trigger (specificity)
+Two tiers of detection verification:
+- **Tier 1 (offline, every PR):** converted queries are evaluated against test samples with an in-repo parser/AST — true positives detected (sensitivity), benign samples don't trigger (specificity). Hermetic, no infrastructure.
+- **Tier 2 (functional, `workflow_dispatch`):** the same detections, authored as native Wazuh rules, are verified against a **live Wazuh engine** via the Manager API `logtest` endpoint — the real decoders and ruleset decide which rule fires. See [Functional Detection Testing](docs/wazuh_functional_testing.md).
 
 ### 6. Coverage Analysis
 Generates a MITRE ATT&CK coverage report with confidence weighting (main branch only). Commits `docs/COVERAGE.md` and the ATT&CK Navigator layer back to the repo.
@@ -139,9 +139,11 @@ python scripts/export_manifest.py --rules-dir rules --output docs/rule_manifest.
 
 This pipeline publishes a machine-readable manifest of production rules for [ADTE](https://github.com/dlpz-SEC) (Autonomous Detection Triage Engine), which maps triaged incidents back to detection coverage, confidence weighting, and tuning guidance.
 
-- **Artifact:** `docs/rule_manifest.json` — every `lifecycle: production` rule with its ATT&CK techniques, `confidence_weight`, false-positive rate, and tuning notes.
-- **Contract:** documented in [`docs/rule_manifest_schema.md`](docs/rule_manifest_schema.md). ADTE joins incidents to detections on the rule `id`.
+- **Artifact:** `docs/rule_manifest.json` — every `lifecycle: production` rule with its ATT&CK techniques, `confidence_weight`, false-positive rate, tuning notes, and `wazuh_rule_ids`.
+- **Contract:** documented in [`docs/rule_manifest_schema.md`](docs/rule_manifest_schema.md). ADTE joins incidents to detections on the rule `id`, and joins **live Wazuh alerts** on `rule.id` ∈ `wazuh_rule_ids` — recovering the full detection context (confidence, tuning notes, techniques) for anything the Wazuh engine fires.
 - **Freshness:** regenerated on every push to `main`; committed back only when rule content changes, so `generated_at` is a stable content-change watermark rather than a per-run timestamp.
+
+This closes the loop: **DaC defines detections → Wazuh runs them → ADTE triages the alerts with full rule context.**
 
 ## Adding New Rules
 
