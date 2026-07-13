@@ -186,14 +186,17 @@ def build_manifest(
     for rule_path in sorted(rules_dir.rglob("*.yml")):
         try:
             with open(rule_path, encoding="utf-8") as f:
-                rule = yaml.safe_load(f)
+                # safe_load_all: correlation rule files are multi-document
+                # (base rule + correlation doc) and must not be skipped.
+                docs = [d for d in yaml.safe_load_all(f) if isinstance(d, dict)]
         except (yaml.YAMLError, OSError) as e:
             print(f"⚠️  Warning: could not parse {rule_path}: {e}")
             continue
 
-        entry = extract_rule_entry(rule, rule_path, rules_dir, wazuh_ids_by_sigma)
-        if entry is not None:
-            entries.append(entry)
+        for rule in docs:
+            entry = extract_rule_entry(rule, rule_path, rules_dir, wazuh_ids_by_sigma)
+            if entry is not None:
+                entries.append(entry)
 
     entries.sort(key=lambda e: e["path"])
     warn_on_id_issues(entries)

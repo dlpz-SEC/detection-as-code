@@ -132,18 +132,31 @@ class TechniqueCoverage:
 
 
 def parse_rule(filepath: Path, test_results: dict = None) -> Optional[RuleCoverage]:
-    """Parse a Sigma rule and extract coverage information."""
+    """Parse a Sigma rule and extract coverage information.
+
+    Handles multi-document files (pySigma correlation rules = base rule +
+    correlation doc): the first detection-bearing doc provides the rule
+    metadata, and MITRE tags are unioned across every doc so correlation
+    techniques appear in coverage instead of silently vanishing.
+    """
     try:
         with open(filepath) as f:
-            rule = yaml.safe_load(f)
+            docs = [d for d in yaml.safe_load_all(f)
+                    if isinstance(d, dict)]
     except Exception as e:
         print(f"Warning: Could not parse {filepath}: {e}")
         return None
-    
-    if not isinstance(rule, dict):
+
+    if not docs:
         return None
-    
-    tags = rule.get("tags", [])
+
+    rule = next((d for d in docs if "detection" in d), docs[0])
+
+    tags = []
+    for doc in docs:
+        for tag in doc.get("tags", []) or []:
+            if tag not in tags:
+                tags.append(tag)
     custom = rule.get("custom", {})
     
     # Extract MITRE techniques and tactics
