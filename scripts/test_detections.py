@@ -452,12 +452,17 @@ def resolve_rule_techniques(
         return None
     try:
         with open(rule_path, encoding="utf-8") as f:
-            rule = yaml.safe_load(f)
+            # safe_load_all: correlation rule files are multi-document; union
+            # technique tags across every doc.
+            docs = [d for d in yaml.safe_load_all(f) if isinstance(d, dict)]
     except (yaml.YAMLError, OSError):
         return None
-    if not isinstance(rule, dict):
+    if not docs:
         return None
-    return extract_rule_techniques(rule.get("tags", []))
+    techniques: set[str] = set()
+    for doc in docs:
+        techniques |= extract_rule_techniques(doc.get("tags", []))
+    return techniques or None
 
 
 def test_rule(
@@ -589,7 +594,23 @@ def main():
     total_failed = 0
     total_fp = 0
 
+    skipped_aggregation: list[str] = []
+
     for query_file in sorted(queries_dir.rglob("*.txt")):
+        # The mock evaluator understands the boolean search-expression subset
+        # only. Correlation rules convert to aggregation SPL (| stats ...),
+        # which it cannot evaluate — skip those EXPLICITLY and say so, rather
+        # than mis-evaluating the pipe tokens as keyword terms. Correlation
+        # rules are validated by `sigma check` and covered upstream; they are
+        # not behaviorally testable by this harness.
+        query_text = query_file.read_text(encoding="utf-8")
+        if re.search(r"\|\s*stats\b", query_text):
+            skipped_aggregation.append(query_file.stem)
+            print(f"Skipping: {query_file.stem}")
+            print("  ⏭️  SKIPPED (aggregation query — correlation rules are "
+                  "not evaluable by the boolean mock harness)")
+            continue
+
         print(f"Testing: {query_file.stem}")
 
         rule_techniques = resolve_rule_techniques(query_file, queries_dir, rules_dir)
@@ -625,7 +646,8 @@ def main():
             "total_rules": total_passed + total_failed,
             "passed": total_passed,
             "failed": total_failed,
-            "total_false_positives": total_fp
+            "total_false_positives": total_fp,
+            "skipped_aggregation": skipped_aggregation
         },
         "results": results
     }
@@ -640,6 +662,9 @@ def main():
     print(f"Passed: {total_passed}")
     print(f"Failed: {total_failed}")
     print(f"False Positives: {total_fp}")
+    if skipped_aggregation:
+        print(f"Skipped (aggregation, not evaluable): {len(skipped_aggregation)} "
+              f"— {', '.join(skipped_aggregation)}")
     print(f"\nResults written to: {args.output}")
 
     # Exit with error if requested and FPs found
