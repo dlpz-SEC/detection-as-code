@@ -1,0 +1,29 @@
+# Sigma <-> Wazuh contract.
+#
+# Read by: scripts/deploy_wazuh_rules.py (what to upload),
+#          scripts/test_detections_wazuh.py (assertion scoping),
+#          scripts/export_manifest.py (wazuh_rule_ids for the ADTE join),
+#          tests/test_rule_map.py (CI drift check: map <-> XML <-> Sigma).
+#
+# All Wazuh rule IDs are STRINGS - Indexer alerts carry rule.id as a string
+# and ADTE reads it as such; strings end-to-end make the join zero-conversion.
+#
+# wazuh_rule_ids:        alerting rules - true positives must land on one of these
+# wazuh_suppression_ids: level-0 filter children - a benign event landing here
+#                        is the filter working, never counted as a fire
+
+schema_version: "1.0"
+rules:
+  - sigma_id: 9e8f2a3b-1c4d-5e6f-7a8b-9c0d1e2f3a4b
+    sigma_path: rules/windows/credential_access/lsass_memory_access.yml
+    techniques: [T1003, T1003.001]
+    wazuh_file: wazuh/rules/dac_windows.xml
+    wazuh_rule_ids: ["100100"]
+    wazuh_suppression_ids: []
+
+  - sigma_id: a5c8d2e1-3f4b-5a6c-7d8e-9f0a1b2c3d4e
+    sigma_path: rules/windows/execution/powershell_encoded_command.yml
+    techniques: [T1059, T1059.001, T1027]
+    wazuh_file: wazuh/rules/dac_windows.xml
+    wazuh_rule_ids: ["100110"]
+    wazuh_suppression_ids: ["100111"]
