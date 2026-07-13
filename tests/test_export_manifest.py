@@ -17,6 +17,7 @@ from export_manifest import (
     build_manifest,
     extract_rule_entry,
     extract_technique_tags,
+    load_wazuh_rule_ids,
     main,
     write_manifest,
 )
@@ -304,8 +305,70 @@ def test_main_creates_output_dir_and_prints_summary(tmp_path, capsys):
     rules_dir = tmp_path / "rules"
     write_rule(rules_dir, "windows/credential_access/test_rule.yml", make_rule())
     output = tmp_path / "docs" / "rule_manifest.json"  # docs/ does not exist yet
+    missing_map = tmp_path / "no_map.yml"  # explicit missing map: entries get []
 
-    main(["--rules-dir", str(rules_dir), "--output", str(output)])
+    main(["--rules-dir", str(rules_dir), "--output", str(output), "--rule-map", str(missing_map)])
 
     assert output.exists()
     assert "Exported 1 production rules" in capsys.readouterr().out
+
+
+# -- wazuh_rule_ids / ADTE join (Phase 5) -------------------------------------
+
+
+def write_rule_map(tmp_path, entries) -> Path:
+    """Write a minimal wazuh/rule_map.yml and return its path."""
+    path = tmp_path / "rule_map.yml"
+    path.write_text(yaml.safe_dump({"schema_version": "1.0", "rules": entries}), encoding="utf-8")
+    return path
+
+
+def test_entry_always_has_wazuh_rule_ids_key():
+    """The field is present even with no map - empty means 'no Wazuh twin yet'."""
+    entry = extract_rule_entry(make_rule(), Path("rules/windows/r.yml"), Path("rules"))
+    assert entry["wazuh_rule_ids"] == []
+
+
+def test_wazuh_rule_ids_joined_by_sigma_id():
+    """A rule's Wazuh IDs come from the map, keyed on the Sigma id."""
+    rule = make_rule(id="sigma-1")
+    mapping = {"sigma-1": ["100100", "100101"]}
+
+    entry = extract_rule_entry(rule, Path("rules/windows/r.yml"), Path("rules"), mapping)
+
+    assert entry["wazuh_rule_ids"] == ["100100", "100101"]
+
+
+def test_unmapped_rule_gets_empty_wazuh_ids():
+    rule = make_rule(id="sigma-unmapped")
+    entry = extract_rule_entry(rule, Path("rules/windows/r.yml"), Path("rules"), {"other": ["100100"]})
+    assert entry["wazuh_rule_ids"] == []
+
+
+def test_load_wazuh_rule_ids_reads_map_and_stringifies(tmp_path):
+    """IDs are coerced to strings; suppression IDs are excluded from the join."""
+    map_path = write_rule_map(tmp_path, [
+        {"sigma_id": "s1", "wazuh_rule_ids": [100100], "wazuh_suppression_ids": [100111]},
+    ])
+
+    mapping = load_wazuh_rule_ids(map_path)
+
+    assert mapping == {"s1": ["100100"]}  # ints -> strings, suppression excluded
+
+
+def test_load_wazuh_rule_ids_missing_map_is_empty(tmp_path):
+    assert load_wazuh_rule_ids(tmp_path / "nope.yml") == {}
+    assert load_wazuh_rule_ids(None) == {}
+
+
+def test_manifest_wazuh_ids_change_breaks_idempotence(tmp_path):
+    """Changing a rule's Wazuh mapping must trigger a rewrite (content changed)."""
+    rules_dir = tmp_path / "rules"
+    write_rule(rules_dir, "windows/r.yml", make_rule(id="s1"))
+    output = tmp_path / "docs" / "manifest.json"
+
+    write_manifest(build_manifest(rules_dir, {"s1": ["100100"]}), output)
+    # Same rules, different Wazuh mapping -> not idempotent, must rewrite
+    assert write_manifest(build_manifest(rules_dir, {"s1": ["100999"]}), output) is True
+    with open(output, encoding="utf-8") as f:
+        assert json.load(f)["rules"][0]["wazuh_rule_ids"] == ["100999"]
