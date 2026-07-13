@@ -1,0 +1,17 @@
+{
+  "name": "Active Account Routine Login",
+  "description": "A routine successful logon on an account the identity directory marks Active, from a corporate-range IP during business hours. Exercises the terminated-account rule's negative path: account_status is Active, so the selection must NOT match. Carries no process-access or PowerShell fields, so the LSASS and encoded-command rules cannot match it either - this sample must fire nothing.",
+  "type": "benign",
+  "events": [
+    {
+      "EventID": 4624,
+      "UtcTime": "2025-01-15 14:20:00.000",
+      "TargetUserName": "cjohnson",
+      "account_status": "Active",
+      "LogonType": 2,
+      "IpAddress": "10.3.1.103",
+      "WorkstationName": "DEV-003",
+      "AuthenticationPackageName": "Kerberos"
+    }
+  ]
+}

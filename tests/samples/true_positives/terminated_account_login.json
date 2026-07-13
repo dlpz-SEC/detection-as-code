@@ -1,0 +1,18 @@
+{
+  "name": "Terminated Account Successful Login",
+  "description": "A successful interactive logon (EventID 4624) on an account the identity directory marks Terminated, sourced from an external IP. Models the SOC-lab E016 case: offboarding left the credential live and an attacker authenticated with it. The account_status field comes from the identity-directory enrichment join the rule declares as a dependency. Must fire the terminated-account authentication rule.",
+  "type": "true_positive",
+  "technique_id": "T1078.002",
+  "events": [
+    {
+      "EventID": 4624,
+      "UtcTime": "2025-01-15 01:30:00.000",
+      "TargetUserName": "pjackson",
+      "account_status": "Terminated",
+      "LogonType": 10,
+      "IpAddress": "95.213.45.67",
+      "WorkstationName": "-",
+      "AuthenticationPackageName": "NTLM"
+    }
+  ]
+}
