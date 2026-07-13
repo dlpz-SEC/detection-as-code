@@ -1,6 +1,6 @@
 # MITRE ATT&CK Coverage Report
 
-*Generated: 2026-07-12 22:57 UTC*
+*Generated: 2026-07-13 00:43 UTC*
 
 ## Executive Summary
 
