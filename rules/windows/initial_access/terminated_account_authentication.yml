@@ -1,0 +1,67 @@
+title: Authentication Activity on Terminated Account
+id: 7d4e2b1a-9c8f-4a6d-b2e3-1f0a5c7d8e9b
+status: experimental
+description: |
+    Detects any authentication activity (success or failure) on an account
+    whose directory status is not Active - terminated, disabled, or suspended.
+    A terminated account should never authenticate; any attempt is either a
+    deprovisioning gap or an adversary using valid-but-stale credentials.
+
+    ENRICHMENT DEPENDENCY: this rule matches on an account_status field that is
+    not present in raw authentication logs. It must be populated upstream by
+    joining the auth event to the identity directory (HR/IdP feed). Without
+    that join the rule cannot fire.
+
+    Ported from the SOC Threat Hunting Lab (soc-threat-hunting-lab), where the
+    reference implementation is regression-tested against a labeled dataset
+    (rule UUID is shared across both repos for cross-repo identity).
+references:
+    - https://attack.mitre.org/techniques/T1078/002/
+author: dlpz-SEC
+date: 2026/07/13
+tags:
+    - attack.initial_access
+    - attack.persistence
+    - attack.t1078
+    - attack.t1078.002
+logsource:
+    category: authentication
+    product: windows
+detection:
+    selection:
+        account_status:
+            - 'Terminated'
+            - 'Disabled'
+            - 'Suspended'
+    condition: selection
+falsepositives:
+    - Deprovisioning lag - account disabled in the directory but a scheduled
+      task or cached session still authenticates. Investigate as a process gap.
+    - Directory replication delay reporting a stale status.
+level: high
+custom:
+    lifecycle: experimental
+    confidence: high
+    false_positive_rate: low
+    investigation_steps: |
+        1. Confirm the account's termination date and reason in the directory.
+        2. Determine the source IP and geolocation of the attempt; a success
+           from an unfamiliar country escalates this to a live compromise.
+        3. Check whether the credential was rotated at termination; if not,
+           force-expire and revoke all sessions/tokens.
+        4. Pivot on the source IP for other accounts touched from it.
+    tuning_notes: |
+        Requires the account_status enrichment join. If the identity feed is
+        unreliable, gate on a curated terminated-accounts watchlist instead of
+        a live status field. Promote to production only after the Wazuh twin
+        (wazuh/rule_map.yml entry + XML rule) exists per repo policy.
+    mitre_context:
+        technique: T1078.002
+        tactic: Initial Access
+        data_sources:
+            - Logon Session: Logon Session Creation
+        platforms:
+            - Windows
+    owner: dlpz-SEC
+    review_frequency: quarterly
+    last_reviewed: 2026-07-13
