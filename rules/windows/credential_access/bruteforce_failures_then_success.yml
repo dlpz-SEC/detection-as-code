@@ -1,0 +1,81 @@
+# Multi-document Sigma correlation rule: a base selection matched by an
+# event_count correlation. Requires multi-doc-aware tooling (validate_rules,
+# the MITRE lint, coverage/manifest exporters — all safe_load_all).
+#
+# Backend capability: the splunk backend converts this (emits `| stats`); the
+# kusto backend (1.0.1) raises NotImplementedError on correlations, so the CI
+# convert matrix skips it for kusto with a logged line.
+#
+# HONEST SCOPE: correlation expresses the "many failures" half of "failures
+# THEN success". The temporal ordering (failures strictly preceding a success
+# with none in between) is enforced downstream — reference implementation:
+# v_detect_brute_force in soc-threat-hunting-lab (NOT EXISTS intervening
+# success), regression-tested against a labeled dataset.
+title: Repeated Authentication Failures Preceding Brute Force
+id: 2a9c4e6f-1b3d-4f8a-9c2e-6d5b7a0f1c3e
+name: auth_failure_burst_base
+status: experimental
+description: |
+    Base selector: failed Windows logon events (EventID 4625). Consumed by the
+    brute-force failure-burst correlation below; not intended to alert alone.
+    Ported from soc-threat-hunting-lab (shared rule UUID).
+references:
+    - https://attack.mitre.org/techniques/T1110/001/
+author: dlpz-SEC
+date: 2026/07/13
+tags:
+    - attack.credential_access
+    - attack.t1110
+    - attack.t1110.001
+logsource:
+    category: authentication
+    product: windows
+detection:
+    selection:
+        EventID: 4625
+    condition: selection
+falsepositives:
+    - A user repeatedly mistyping a password after a rotation.
+    - A stale credential in a service or scheduled task hammering the endpoint.
+level: high
+custom:
+    lifecycle: experimental
+    confidence: high
+    false_positive_rate: medium
+    investigation_steps: |
+        1. Confirm a subsequent SUCCESS (EventID 4624) from the same source
+           within the window — that promotes this from attempt to compromise.
+        2. Enrich the source IP (Tor exit / scanner / known-bad).
+        3. If compromised, force password reset and revoke sessions.
+    tuning_notes: |
+        The success-after-failures ordering is not expressible in base Sigma
+        correlation; enforce it in the SIEM correlation search or downstream
+        analytics (see the lab's NOT EXISTS reference implementation). Raise
+        the count threshold in noisy environments.
+    mitre_context:
+        technique: T1110.001
+        tactic: Credential Access
+        data_sources:
+            - Logon Session: Logon Session Creation
+        platforms:
+            - Windows
+    owner: dlpz-SEC
+    review_frequency: monthly
+    last_reviewed: 2026-07-13
+---
+title: Brute Force Failure Burst Correlation
+id: 5f8b1d3a-7c2e-4a9f-8b6d-0e4c2a1f9d7b
+status: experimental
+correlation:
+    type: event_count
+    rules:
+        - auth_failure_burst_base
+    group-by:
+        - TargetUserName
+    timespan: 1h
+    condition:
+        gte: 5
+tags:
+    - attack.credential_access
+    - attack.t1110
+    - attack.t1110.001

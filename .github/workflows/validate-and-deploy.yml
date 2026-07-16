@@ -160,29 +160,34 @@ jobs:
           import yaml
           import sys
           from pathlib import Path
-          
+
           errors = []
           for rule_path in Path('rules').rglob('*.yml'):
+              # safe_load_all: correlation rule files are multi-document
+              # (base rule + correlation doc); every doc gets checked.
               with open(rule_path) as f:
-                  rule = yaml.safe_load(f)
-              
-              # Skip draft rules - they're work in progress
-              lifecycle = rule.get('custom', {}).get('lifecycle', 'draft')
-              if lifecycle == 'draft':
-                  continue
-              
-              tags = rule.get('tags', [])
-              mitre_tags = [t for t in tags if t.startswith('attack.')]
-              
-              if not mitre_tags:
-                  errors.append(f'{rule_path}: No MITRE ATT&CK tags found (lifecycle: {lifecycle})')
-              
-              # Production rules need technique IDs, not just tactics
-              if lifecycle == 'production':
-                  technique_tags = [t for t in mitre_tags if t.startswith('attack.t')]
-                  if not technique_tags:
-                      errors.append(f'{rule_path}: Production rule missing technique ID (only has tactic tags)')
-          
+                  docs = [d for d in yaml.safe_load_all(f) if isinstance(d, dict)]
+
+              for rule in docs:
+                  is_correlation = 'correlation' in rule
+
+                  # Skip draft rules - they're work in progress
+                  lifecycle = rule.get('custom', {}).get('lifecycle', 'draft')
+                  if lifecycle == 'draft' and not is_correlation:
+                      continue
+
+                  tags = rule.get('tags', [])
+                  mitre_tags = [t for t in tags if t.startswith('attack.')]
+
+                  if not mitre_tags:
+                      errors.append(f'{rule_path}: No MITRE ATT&CK tags found (lifecycle: {lifecycle})')
+
+                  # Production rules and correlation docs need technique IDs
+                  if lifecycle == 'production' or is_correlation:
+                      technique_tags = [t for t in mitre_tags if t.startswith('attack.t')]
+                      if not technique_tags:
+                          errors.append(f'{rule_path}: Missing technique ID (only has tactic tags)')
+
           if errors:
               print('MITRE tagging errors:')
               for e in errors:
@@ -236,9 +241,19 @@ jobs:
             relative_path="${rule#rules/}"
             output_dir="output/${{ matrix.siem }}/$(dirname $relative_path)"
             output_file="$output_dir/$(basename $rule .yml).txt"
-            
+
             mkdir -p "$output_dir"
-            
+
+            # Capability gate: pySigma-backend-kusto (1.0.1) raises
+            # NotImplementedError on Sigma correlation rules. The splunk
+            # backend converts them (emits `| stats` SPL). Skip correlation
+            # files on the kusto leg EXPLICITLY — a logged skip, not a
+            # silent one — until the backend gains correlation support.
+            if [ "${{ matrix.siem }}" = "kusto" ] && grep -qE '^correlation:' "$rule"; then
+              echo "SKIP (kusto): $rule — backend does not support correlation rules"
+              continue
+            fi
+
             echo "Converting: $rule -> $output_file"
             # Query file captures stdout ONLY. sigma-cli writes a "Parsing
             # Sigma rules" progress banner to stderr on every successful run,

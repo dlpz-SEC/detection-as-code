@@ -15,6 +15,7 @@ Enterprise considerations:
 
 import argparse
 import json
+import re
 import sys
 from dataclasses import dataclass, asdict
 from datetime import datetime
@@ -365,22 +366,79 @@ def validate_custom_fields(rule: dict, filepath: str) -> list[ValidationIssue]:
     return issues
 
 
+def validate_correlation_doc(doc: dict, filepath: str) -> list[ValidationIssue]:
+    """
+    Validate a Sigma correlation document (pySigma meta-rule).
+
+    Correlation docs live in the same file as their base rule(s) (multi-doc
+    YAML) and have no logsource/detection of their own, so the standard rule
+    schema does not apply. They must still be titled, reference at least one
+    base rule, and carry technique-level MITRE tags.
+    """
+    issues = []
+
+    title = doc.get("title")
+    if not isinstance(title, str) or len(title) < 5:
+        issues.append(ValidationIssue(
+            file=filepath,
+            severity=Severity.ERROR,
+            code="INVALID_TITLE",
+            message="Correlation doc must have a title of at least 5 characters"
+        ))
+
+    correlation = doc.get("correlation", {})
+    if not isinstance(correlation, dict) or not correlation.get("rules"):
+        issues.append(ValidationIssue(
+            file=filepath,
+            severity=Severity.ERROR,
+            code="CORRELATION_NO_RULES",
+            message="Correlation doc must reference base rules via correlation.rules"
+        ))
+    if isinstance(correlation, dict) and "type" not in correlation:
+        issues.append(ValidationIssue(
+            file=filepath,
+            severity=Severity.ERROR,
+            code="CORRELATION_NO_TYPE",
+            message="Correlation doc must declare correlation.type (e.g. event_count)"
+        ))
+
+    tags = doc.get("tags", []) or []
+    technique_tags = [
+        t for t in tags
+        if isinstance(t, str) and re.match(r"^attack\.t\d{4}", t)
+    ]
+    if not technique_tags:
+        issues.append(ValidationIssue(
+            file=filepath,
+            severity=Severity.ERROR,
+            code="MISSING_TECHNIQUE_ID",
+            message="Correlation doc must carry a technique tag (attack.tXXXX)"
+        ))
+
+    return issues
+
+
 def validate_rule(filepath: Path, strict: bool = False) -> list[ValidationIssue]:
     """
     Validate a single Sigma rule file.
-    
+
+    A file may contain multiple YAML documents (pySigma correlation rules ship
+    as base rule + correlation doc in one file). Detection docs get the full
+    schema/lifecycle/MITRE validation; correlation docs get the
+    correlation-specific checks.
+
     Args:
         filepath: Path to the rule YAML file
         strict: If True, treat warnings as errors
-    
+
     Returns:
         List of validation issues found
     """
     issues = []
-    
+
     try:
         with open(filepath) as f:
-            rule = yaml.safe_load(f)
+            docs = [d for d in yaml.safe_load_all(f) if d is not None]
     except yaml.YAMLError as e:
         issues.append(ValidationIssue(
             file=str(filepath),
@@ -389,29 +447,43 @@ def validate_rule(filepath: Path, strict: bool = False) -> list[ValidationIssue]
             message=f"Failed to parse YAML: {e}"
         ))
         return issues
-    
-    if not isinstance(rule, dict):
+
+    if not docs:
         issues.append(ValidationIssue(
             file=str(filepath),
             severity=Severity.ERROR,
             code="INVALID_RULE_FORMAT",
-            message="Rule must be a YAML dictionary"
+            message="File contains no YAML documents"
         ))
         return issues
-    
-    # Run all validators
-    issues.extend(validate_rule_schema(rule, str(filepath)))
-    
-    # Get lifecycle for context-aware validation
-    lifecycle_str = rule.get("custom", {}).get("lifecycle", "draft")
-    try:
-        lifecycle = Lifecycle(lifecycle_str)
-    except ValueError:
-        lifecycle = Lifecycle.DRAFT
-    
-    issues.extend(validate_mitre_tags(rule, str(filepath), lifecycle))
-    issues.extend(validate_custom_fields(rule, str(filepath)))
-    
+
+    for rule in docs:
+        if not isinstance(rule, dict):
+            issues.append(ValidationIssue(
+                file=str(filepath),
+                severity=Severity.ERROR,
+                code="INVALID_RULE_FORMAT",
+                message="Rule must be a YAML dictionary"
+            ))
+            continue
+
+        if "correlation" in rule:
+            issues.extend(validate_correlation_doc(rule, str(filepath)))
+            continue
+
+        # Run all validators
+        issues.extend(validate_rule_schema(rule, str(filepath)))
+
+        # Get lifecycle for context-aware validation
+        lifecycle_str = rule.get("custom", {}).get("lifecycle", "draft")
+        try:
+            lifecycle = Lifecycle(lifecycle_str)
+        except ValueError:
+            lifecycle = Lifecycle.DRAFT
+
+        issues.extend(validate_mitre_tags(rule, str(filepath), lifecycle))
+        issues.extend(validate_custom_fields(rule, str(filepath)))
+
     return issues
 
 
