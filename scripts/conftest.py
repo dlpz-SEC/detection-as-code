@@ -8,4 +8,4 @@ default run to ``tests/``, but an explicit ``pytest .`` / ``pytest scripts/``
 would still try to collect this file - ``collect_ignore`` blocks that too.
 """
 
-collect_ignore = ["test_detections.py"]
+collect_ignore = ["test_detections.py", "test_detections_wazuh.py"]

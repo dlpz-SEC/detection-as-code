@@ -1,8 +1,25 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-07-12T16:38:01Z",
-  "rule_count": 2,
+  "generated_at": "2026-07-16T07:07:21Z",
+  "rule_count": 3,
   "rules": [
+    {
+      "id": "0471bd9a-9b43-4f31-860f-4f8bf4950058",
+      "title": "SSH Brute Force via Repeated Invalid User Logins",
+      "path": "rules/linux/credential_access/ssh_brute_force.yml",
+      "techniques": [
+        "T1110",
+        "T1110.001"
+      ],
+      "lifecycle": "production",
+      "confidence": "high",
+      "confidence_weight": 1.0,
+      "false_positive_rate": "low",
+      "tuning_notes": "Threshold lives in the Wazuh twin (rule 100200): 6 failures from the\nsame source IP in 120 seconds, tighter than Wazuh's built-in 5712 (8).\n\n1. Baseline first: internet-facing hosts see constant background\n   scanning, so expect volume before tuning.\n2. Exclude known scanner/automation source IPs by adding a level-0\n   suppression child rather than loosening the threshold.\n3. Raise the threshold before lowering fidelity - a noisy brute-force\n   rule trains analysts to ignore it.\n4. Pair with a \"success after brute force\" correlation for the case\n   that actually matters.",
+      "wazuh_rule_ids": [
+        "100200"
+      ]
+    },
     {
       "id": "9e8f2a3b-1c4d-5e6f-7a8b-9c0d1e2f3a4b",
       "title": "Suspicious LSASS Memory Access via OpenProcess",
@@ -15,7 +32,10 @@
       "confidence": "high",
       "confidence_weight": 1.0,
       "false_positive_rate": "low",
-      "tuning_notes": "This rule requires environment-specific tuning:\n\n1. FIRST DEPLOYMENT: Run in test/log-only mode for 7 days\n2. Identify legitimate processes accessing LSASS in your environment\n3. Add verified legitimate tools to appropriate filter sections\n4. Document each exclusion with ticket/change request reference\n\nCommon additions:\n- Endpoint management agents (SCCM, Intune, etc.)\n- PAM solutions (CyberArk, BeyondTrust, etc.)\n- Custom monitoring scripts (verify and whitelist by hash)"
+      "tuning_notes": "This rule requires environment-specific tuning:\n\n1. FIRST DEPLOYMENT: Run in test/log-only mode for 7 days\n2. Identify legitimate processes accessing LSASS in your environment\n3. Add verified legitimate tools to appropriate filter sections\n4. Document each exclusion with ticket/change request reference\n\nCommon additions:\n- Endpoint management agents (SCCM, Intune, etc.)\n- PAM solutions (CyberArk, BeyondTrust, etc.)\n- Custom monitoring scripts (verify and whitelist by hash)",
+      "wazuh_rule_ids": [
+        "100100"
+      ]
     },
     {
       "id": "a5c8d2e1-3f4b-5a6c-7d8e-9f0a1b2c3d4e",
@@ -30,7 +50,10 @@
       "confidence": "medium",
       "confidence_weight": 0.6,
       "false_positive_rate": "medium",
-      "tuning_notes": "This rule has a MEDIUM false positive rate due to legitimate\nautomation use cases. Tune as follows:\n\n1. Baseline your environment:\n   - Run for 7 days in log-only mode\n   - Identify recurring legitimate encoded command patterns\n\n2. Add exclusions by:\n   - Parent process (management tools)\n   - Specific base64 patterns (if static)\n   - Service accounts with documented automation\n\n3. Consider splitting into HIGH and MEDIUM severity:\n   - HIGH: Encoded + hidden window + execution bypass\n   - MEDIUM: Encoded command only"
+      "tuning_notes": "This rule has a MEDIUM false positive rate due to legitimate\nautomation use cases. Tune as follows:\n\n1. Baseline your environment:\n   - Run for 7 days in log-only mode\n   - Identify recurring legitimate encoded command patterns\n\n2. Add exclusions by:\n   - Parent process (management tools)\n   - Specific base64 patterns (if static)\n   - Service accounts with documented automation\n\n3. Consider splitting into HIGH and MEDIUM severity:\n   - HIGH: Encoded + hidden window + execution bypass\n   - MEDIUM: Encoded command only",
+      "wazuh_rule_ids": [
+        "100110"
+      ]
     }
   ]
 }

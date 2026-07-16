@@ -1,0 +1,42 @@
+<!--
+  Detection-as-Code: native Wazuh twins for Linux detections.
+
+  Contract: wazuh/rule_map.yml binds each rule here to its Sigma source by
+  UUID + MITRE technique; tests/test_rule_map.py fails CI if they drift.
+
+  Built-in chain these rules extend (confirmed against the live manager,
+  0095-sshd_rules.xml):
+    5700 -> sshd base
+    5710 -> "Attempt to login using a non-existent user"  (level 5, T1110.001)
+    5712 -> built-in brute force, frequency 8 / 120s      (level 10, T1110)
+    5715 -> "authentication success"                      (level 3, benign)
+
+  Custom ID allocation: blocks of 10 per Sigma rule.
+    10020x - ssh_brute_force (sigma 0471bd9a-...)
+-->
+<group name="dac,linux,syslog,">
+
+  <!--
+    Twin of rules/linux/credential_access/ssh_brute_force.yml
+    (sigma id 0471bd9a-9b43-4f31-860f-4f8bf4950058).
+
+    The Sigma rule expresses the atomic event (one invalid-user failure); the
+    repetition threshold is applied here, where Wazuh's correlation engine
+    lives. We alert at 6 failures from the same source in 120s - deliberately
+    tighter than the built-in 5712 (8), so we catch a slow guesser earlier.
+
+    ignore="60" suppresses re-alerting on the same source for 60s, matching
+    the built-in's anti-spam behaviour.
+  -->
+  <rule id="100200" level="12" frequency="6" timeframe="120" ignore="60">
+    <if_matched_sid>5710</if_matched_sid>
+    <same_source_ip />
+    <description>DAC: SSH brute force - 6+ invalid-user failures from $(srcip)</description>
+    <mitre>
+      <id>T1110</id>
+      <id>T1110.001</id>
+    </mitre>
+    <group>authentication_failures,credential_access,</group>
+  </rule>
+
+</group>
