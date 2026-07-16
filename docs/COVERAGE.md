@@ -1,16 +1,16 @@
 # MITRE ATT&CK Coverage Report
 
-*Generated: 2026-07-13 00:43 UTC*
+*Generated: 2026-07-16 07:39 UTC*
 
 ## Executive Summary
 
 | Metric | Value |
 |--------|-------|
-| Techniques Covered | 5 |
-| High Confidence | 2 |
+| Techniques Covered | 7 |
+| High Confidence | 4 |
 | Medium Confidence | 3 |
 | Low Confidence | 0 |
-| Total Rules | 5 |
+| Total Rules | 7 |
 
 ## Coverage by Tactic
 
@@ -36,6 +36,8 @@
 |-----------|------|-------|------------|-------|
 | T1003 | OS Credential Dumping | 1 | 🟢 high | 1.00 |
 | T1003.001 | LSASS Memory | 1 | 🟢 high | 1.00 |
+| T1110 | Unknown | 1 | 🟢 high | 1.00 |
+| T1110.001 | Unknown | 1 | 🟢 high | 1.00 |
 
 ## Coverage Gaps
 

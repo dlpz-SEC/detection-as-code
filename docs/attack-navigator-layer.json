@@ -2,7 +2,7 @@
   "name": "Detection Coverage",
   "version": "4.5",
   "domain": "enterprise-attack",
-  "description": "Detection coverage as of 2026-07-13",
+  "description": "Detection coverage as of 2026-07-16",
   "filters": {
     "platforms": [
       "Windows",
@@ -88,6 +88,40 @@
     },
     {
       "techniqueID": "T1003.001",
+      "score": 100,
+      "color": "#2ecc71",
+      "comment": "Rules: 1, Confidence: high",
+      "enabled": true,
+      "metadata": [
+        {
+          "name": "rule_count",
+          "value": "1"
+        },
+        {
+          "name": "confidence",
+          "value": "high"
+        }
+      ]
+    },
+    {
+      "techniqueID": "T1110",
+      "score": 100,
+      "color": "#2ecc71",
+      "comment": "Rules: 1, Confidence: high",
+      "enabled": true,
+      "metadata": [
+        {
+          "name": "rule_count",
+          "value": "1"
+        },
+        {
+          "name": "confidence",
+          "value": "high"
+        }
+      ]
+    },
+    {
+      "techniqueID": "T1110.001",
       "score": 100,
       "color": "#2ecc71",
       "comment": "Rules: 1, Confidence: high",
