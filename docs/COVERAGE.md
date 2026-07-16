@@ -1,18 +1,25 @@
 # MITRE ATT&CK Coverage Report
 
-*Generated: 2026-07-16 07:39 UTC*
+*Generated: 2026-07-16 07:54 UTC*
 
 ## Executive Summary
 
 | Metric | Value |
 |--------|-------|
-| Techniques Covered | 7 |
+| Techniques Covered | 10 |
 | High Confidence | 4 |
-| Medium Confidence | 3 |
-| Low Confidence | 0 |
-| Total Rules | 7 |
+| Medium Confidence | 5 |
+| Low Confidence | 1 |
+| Total Rules | 13 |
 
 ## Coverage by Tactic
+
+### Initial Access
+
+| Technique | Name | Rules | Confidence | Score |
+|-----------|------|-------|------------|-------|
+| T1078 | Unknown | 1 | 🟡 medium | 0.70 |
+| T1078.002 | Unknown | 1 | 🟡 medium | 0.70 |
 
 ### Execution
 
@@ -21,6 +28,13 @@
 | T1027 | Obfuscated Files or Information | 1 | 🟡 medium | 0.60 |
 | T1059 | Command and Scripting Interpreter | 1 | 🟡 medium | 0.60 |
 | T1059.001 | PowerShell | 1 | 🟡 medium | 0.60 |
+
+### Persistence
+
+| Technique | Name | Rules | Confidence | Score |
+|-----------|------|-------|------------|-------|
+| T1078 | Unknown | 1 | 🟡 medium | 0.70 |
+| T1078.002 | Unknown | 1 | 🟡 medium | 0.70 |
 
 ### Defense Evasion
 
@@ -36,11 +50,16 @@
 |-----------|------|-------|------------|-------|
 | T1003 | OS Credential Dumping | 1 | 🟢 high | 1.00 |
 | T1003.001 | LSASS Memory | 1 | 🟢 high | 1.00 |
-| T1110 | Unknown | 1 | 🟢 high | 1.00 |
-| T1110.001 | Unknown | 1 | 🟢 high | 1.00 |
+| T1110 | Unknown | 3 | 🟢 high | 1.00 |
+| T1110.001 | Unknown | 2 | 🟢 high | 1.00 |
+| T1110.003 | Unknown | 1 | 🟠 low | 0.25 |
 
 ## Coverage Gaps
 
-Techniques below medium confidence or with failing tests:
+Techniques below medium confidence, with failing tests, or not behaviorally tested:
 
-*No significant coverage gaps identified.*
+| Technique | Issue |
+|-----------|-------|
+| T1110 | Not behaviorally tested (aggregation query) |
+| T1110.001 | Not behaviorally tested (aggregation query) |
+| T1110.003 | Low confidence, Not behaviorally tested (aggregation query) |

@@ -19,6 +19,40 @@
   "hideDisabled": false,
   "techniques": [
     {
+      "techniqueID": "T1078",
+      "score": 70,
+      "color": "#f1c40f",
+      "comment": "Rules: 1, Confidence: medium",
+      "enabled": true,
+      "metadata": [
+        {
+          "name": "rule_count",
+          "value": "1"
+        },
+        {
+          "name": "confidence",
+          "value": "medium"
+        }
+      ]
+    },
+    {
+      "techniqueID": "T1078.002",
+      "score": 70,
+      "color": "#f1c40f",
+      "comment": "Rules: 1, Confidence: medium",
+      "enabled": true,
+      "metadata": [
+        {
+          "name": "rule_count",
+          "value": "1"
+        },
+        {
+          "name": "confidence",
+          "value": "medium"
+        }
+      ]
+    },
+    {
       "techniqueID": "T1059",
       "score": 60,
       "color": "#f1c40f",
@@ -107,12 +141,12 @@
       "techniqueID": "T1110",
       "score": 100,
       "color": "#2ecc71",
-      "comment": "Rules: 1, Confidence: high",
+      "comment": "Rules: 3, Confidence: high",
       "enabled": true,
       "metadata": [
         {
           "name": "rule_count",
-          "value": "1"
+          "value": "3"
         },
         {
           "name": "confidence",
@@ -124,7 +158,24 @@
       "techniqueID": "T1110.001",
       "score": 100,
       "color": "#2ecc71",
-      "comment": "Rules: 1, Confidence: high",
+      "comment": "Rules: 2, Confidence: high",
+      "enabled": true,
+      "metadata": [
+        {
+          "name": "rule_count",
+          "value": "2"
+        },
+        {
+          "name": "confidence",
+          "value": "high"
+        }
+      ]
+    },
+    {
+      "techniqueID": "T1110.003",
+      "score": 25,
+      "color": "#e67e22",
+      "comment": "Rules: 1, Confidence: low",
       "enabled": true,
       "metadata": [
         {
@@ -133,7 +184,7 @@
         },
         {
           "name": "confidence",
-          "value": "high"
+          "value": "low"
         }
       ]
     }
