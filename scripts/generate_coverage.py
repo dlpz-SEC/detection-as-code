@@ -31,6 +31,16 @@ CONFIDENCE_WEIGHTS = {
     None: 0.3  # Default for missing confidence
 }
 
+# Behavioral-test state weights. A rule the harness could not evaluate
+# ("untested" — e.g. a correlation rule converting to aggregation SPL) must
+# score BELOW a rule with a passing behavioral test, but above a rule whose
+# test actually failed. Scoring it as passed would inflate published coverage.
+TEST_STATE_WEIGHTS = {
+    "passed": 1.0,
+    "untested": 0.6,
+    "failed": 0.5,
+}
+
 # Lifecycle weights (draft rules contribute less to coverage)
 LIFECYCLE_WEIGHTS = {
     "production": 1.0,
@@ -76,15 +86,20 @@ class RuleCoverage:
     lifecycle: str
     confidence: Optional[str]
     level: str
-    test_passed: bool
+    # "passed" | "failed" | "untested". Tri-valued on purpose: a rule the
+    # behavioral harness SKIPPED (aggregation query it cannot evaluate) is not
+    # the same as one that passed, and must not claim full coverage weight.
+    test_state: str
     
     @property
     def coverage_score(self) -> float:
         """Calculate weighted coverage score for this rule."""
         confidence_weight = CONFIDENCE_WEIGHTS.get(self.confidence, 0.3)
         lifecycle_weight = LIFECYCLE_WEIGHTS.get(self.lifecycle, 0.2)
-        test_weight = 1.0 if self.test_passed else 0.5
-        
+        # "untested" sits between passed and failed: it is not a broken rule,
+        # but it has no behavioral evidence, so it cannot score as if it did.
+        test_weight = TEST_STATE_WEIGHTS.get(self.test_state, 0.5)
+
         return confidence_weight * lifecycle_weight * test_weight
 
 
@@ -174,12 +189,20 @@ def parse_rule(filepath: Path, test_results: dict = None) -> Optional[RuleCovera
         elif value in TACTIC_ORDER:
             tactics.append(value)
     
-    # Check test results
-    test_passed = True
+    # Check test results. The harness emits an explicit skip list for queries
+    # it cannot evaluate (aggregation SPL from correlation rules); read that
+    # rather than letting a missing entry silently default to "passed".
+    test_state = "passed"
     if test_results:
         rule_name = filepath.stem
-        rule_result = test_results.get("results", {}).get(rule_name, {})
-        test_passed = rule_result.get("passed", True)
+        skipped = set(test_results.get("summary", {}).get("skipped_aggregation", []))
+        results = test_results.get("results", {})
+        if rule_name in skipped:
+            test_state = "untested"
+        elif rule_name in results:
+            test_state = "passed" if results[rule_name].get("passed") else "failed"
+        # else: no sample routed to this rule — keep the benign "passed"
+        # default rather than penalising a rule for having no test data.
     
     return RuleCoverage(
         filepath=str(filepath),
@@ -189,7 +212,7 @@ def parse_rule(filepath: Path, test_results: dict = None) -> Optional[RuleCovera
         lifecycle=custom.get("lifecycle", "draft"),
         confidence=custom.get("confidence"),
         level=rule.get("level", "medium"),
-        test_passed=test_passed
+        test_state=test_state
     )
 
 
@@ -324,13 +347,14 @@ def generate_markdown_report(coverage_map: dict[str, TechniqueCoverage]) -> str:
     lines.extend([
         "## Coverage Gaps",
         "",
-        "Techniques below medium confidence or with failing tests:",
+        "Techniques below medium confidence, with failing tests, or not "
+        "behaviorally tested:",
         "",
     ])
-    
-    gaps = [t for t in coverage_map.values() 
-            if t.confidence_level in ["low", "none"] or 
-            any(not r.test_passed for r in t.rules)]
+
+    gaps = [t for t in coverage_map.values()
+            if t.confidence_level in ["low", "none"] or
+            any(r.test_state != "passed" for r in t.rules)]
     
     if gaps:
         lines.append("| Technique | Issue |")
@@ -339,8 +363,10 @@ def generate_markdown_report(coverage_map: dict[str, TechniqueCoverage]) -> str:
             issues = []
             if tech.confidence_level == "low":
                 issues.append("Low confidence")
-            if any(not r.test_passed for r in tech.rules):
+            if any(r.test_state == "failed" for r in tech.rules):
                 issues.append("Test failures")
+            if any(r.test_state == "untested" for r in tech.rules):
+                issues.append("Not behaviorally tested (aggregation query)")
             lines.append(f"| {tech.technique_id} | {', '.join(issues)} |")
     else:
         lines.append("*No significant coverage gaps identified.*")
