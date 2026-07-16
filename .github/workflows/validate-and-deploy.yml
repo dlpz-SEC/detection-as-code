@@ -443,15 +443,38 @@ jobs:
   # ============================================================================
   # STAGE 8: Functional Detection Tests (Tier 2 - live Wazuh engine)
   # Purpose: Verify detections fire in Wazuh's REAL analysis pipeline via the
-  # Manager API logtest endpoint. Requires a self-hosted runner with network
-  # access to the Wazuh manager (the lab VM), so it is workflow_dispatch-only:
-  # it never runs on push/PR and stays inert until such a runner is registered.
-  # Tier 1 (Behavioral Tests, offline) remains the always-on gate.
+  # Manager API logtest endpoint. Needs a self-hosted runner with network access
+  # to the Wazuh manager (the lab VM). Tier 1 (Behavioral Tests, offline) remains
+  # the always-on gate.
+  #
+  # SECURITY — READ BEFORE REGISTERING A `wazuh-lab` RUNNER.
+  # The `if:` below is NOT a trust boundary. On `pull_request`, GitHub evaluates
+  # the workflow from the PR HEAD, so a fork can rewrite this guard (and any step
+  # here) and have it run. This repo is public and the paths filter above includes
+  # this file. Secrets stay safe — GitHub withholds them from fork PRs and forces
+  # a read-only token — but the RUNNER HOST does not: a fork PR would execute as
+  # the runner account on the lab machine. No workflow-level `if:` can prevent
+  # this; the attacker controls the file.
+  #
+  # This job is inert only because no such runner is registered. Before you
+  # register one:
+  #   1. Settings > Actions > General > "Require approval for ALL outside
+  #      collaborators" (default `first_time_contributors` lets a once-approved
+  #      account auto-run every later PR). Note the approve button authorizes
+  #      EXECUTION, not the code — read the diff, every time.
+  #   2. Host the runner in a disposable VM, not on the lab host, and prefer an
+  #      ephemeral (--ephemeral) registration so one job cannot persist.
+  # GitHub's own guidance is to avoid self-hosted runners on public repos:
+  # https://docs.github.com/actions/security-guides/security-hardening-for-github-actions#hardening-for-self-hosted-runners
   # ============================================================================
   wazuh-functional:
     name: Functional Tests (Wazuh)
     runs-on: [self-hosted, wazuh-lab]
-    if: github.event_name == 'workflow_dispatch'
+    # Defence in depth only — see the SECURITY note above. The repository check
+    # stops a *fork's own* Actions from claiming the runner; it does not stop a
+    # fork PR against this repo, because that runs with github.repository set to
+    # the base repo.
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'dlpz-SEC/detection-as-code'
     timeout-minutes: 15
 
     steps:
