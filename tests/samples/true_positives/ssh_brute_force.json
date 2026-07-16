@@ -1,0 +1,22 @@
+{
+  "name": "SSH Brute Force - Invalid User Guessing",
+  "description": "Eight failed SSH authentications for a non-existent user from a single source IP within seconds - the signature of automated password guessing. Must trigger the DaC brute-force rule (100200) at the 6th failure, ahead of Wazuh's built-in 5712 (which fires at 8).",
+  "type": "true_positive",
+  "technique_id": "T1110.001",
+  "source": "synthetic - modelled on sshd auth.log output",
+  "wazuh": {
+    "log_format": "syslog",
+    "location": "/var/log/auth.log",
+    "expected_rule_ids": ["100200"],
+    "events": [
+      "Jul 16 07:20:01 web-server sshd[3001]: Failed password for invalid user oracle from 203.0.113.77 port 60001 ssh2",
+      "Jul 16 07:20:02 web-server sshd[3002]: Failed password for invalid user postgres from 203.0.113.77 port 60002 ssh2",
+      "Jul 16 07:20:03 web-server sshd[3003]: Failed password for invalid user jenkins from 203.0.113.77 port 60003 ssh2",
+      "Jul 16 07:20:04 web-server sshd[3004]: Failed password for invalid user ubuntu from 203.0.113.77 port 60004 ssh2",
+      "Jul 16 07:20:05 web-server sshd[3005]: Failed password for invalid user tomcat from 203.0.113.77 port 60005 ssh2",
+      "Jul 16 07:20:06 web-server sshd[3006]: Failed password for invalid user backup from 203.0.113.77 port 60006 ssh2",
+      "Jul 16 07:20:07 web-server sshd[3007]: Failed password for invalid user deploy from 203.0.113.77 port 60007 ssh2",
+      "Jul 16 07:20:08 web-server sshd[3008]: Failed password for invalid user admin from 203.0.113.77 port 60008 ssh2"
+    ]
+  }
+}
