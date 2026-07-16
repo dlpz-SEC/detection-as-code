@@ -18,6 +18,7 @@ on:
       - 'rules/**'
       - 'tests/**'
       - 'scripts/**'
+      - 'wazuh/**'
       - 'pytest.ini'
       - '.github/workflows/validate-and-deploy.yml'
   pull_request:
@@ -26,6 +27,7 @@ on:
       - 'rules/**'
       - 'tests/**'
       - 'scripts/**'
+      - 'wazuh/**'
       - 'pytest.ini'
       - '.github/workflows/validate-and-deploy.yml'
   workflow_dispatch:  # Manual trigger for full pipeline runs
@@ -439,7 +441,86 @@ jobs:
           fi
 
   # ============================================================================
-  # STAGE 8: Deployment (Optional - Uncomment when ready)
+  # STAGE 8: Functional Detection Tests (Tier 2 - live Wazuh engine)
+  # Purpose: Verify detections fire in Wazuh's REAL analysis pipeline via the
+  # Manager API logtest endpoint. Needs a self-hosted runner with network access
+  # to the Wazuh manager (the lab VM). Tier 1 (Behavioral Tests, offline) remains
+  # the always-on gate.
+  #
+  # SECURITY — READ BEFORE REGISTERING A `wazuh-lab` RUNNER.
+  # The `if:` below is NOT a trust boundary. On `pull_request`, GitHub evaluates
+  # the workflow from the PR HEAD, so a fork can rewrite this guard (and any step
+  # here) and have it run. This repo is public and the paths filter above includes
+  # this file. Secrets stay safe — GitHub withholds them from fork PRs and forces
+  # a read-only token — but the RUNNER HOST does not: a fork PR would execute as
+  # the runner account on the lab machine. No workflow-level `if:` can prevent
+  # this; the attacker controls the file.
+  #
+  # This job is inert only because no such runner is registered. Before you
+  # register one:
+  #   1. Settings > Actions > General > "Require approval for ALL outside
+  #      collaborators" (default `first_time_contributors` lets a once-approved
+  #      account auto-run every later PR). Note the approve button authorizes
+  #      EXECUTION, not the code — read the diff, every time.
+  #   2. Host the runner in a disposable VM, not on the lab host, and prefer an
+  #      ephemeral (--ephemeral) registration so one job cannot persist.
+  # GitHub's own guidance is to avoid self-hosted runners on public repos:
+  # https://docs.github.com/actions/security-guides/security-hardening-for-github-actions#hardening-for-self-hosted-runners
+  # ============================================================================
+  wazuh-functional:
+    name: Functional Tests (Wazuh)
+    runs-on: [self-hosted, wazuh-lab]
+    # Defence in depth only — see the SECURITY note above. The repository check
+    # stops a *fork's own* Actions from claiming the runner; it does not stop a
+    # fork PR against this repo, because that runs with github.repository set to
+    # the base repo.
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'dlpz-SEC/detection-as-code'
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: pip install -r scripts/requirements.txt
+
+      - name: Deploy rules to Wazuh manager
+        env:
+          DAC_WAZUH_API_HOST: ${{ secrets.DAC_WAZUH_API_HOST }}
+          DAC_WAZUH_API_USER: ${{ secrets.DAC_WAZUH_API_USER }}
+          DAC_WAZUH_API_PASS: ${{ secrets.DAC_WAZUH_API_PASS }}
+          DAC_WAZUH_API_VERIFY_SSL: 'false'  # lab manager ships a self-signed cert
+        run: |
+          python scripts/deploy_wazuh_rules.py --rule-map wazuh/rule_map.yml
+
+      - name: Run functional detection tests
+        env:
+          DAC_WAZUH_API_HOST: ${{ secrets.DAC_WAZUH_API_HOST }}
+          DAC_WAZUH_API_USER: ${{ secrets.DAC_WAZUH_API_USER }}
+          DAC_WAZUH_API_PASS: ${{ secrets.DAC_WAZUH_API_PASS }}
+          DAC_WAZUH_API_VERIFY_SSL: 'false'
+        run: |
+          python scripts/test_detections_wazuh.py \
+            --samples-dir tests/samples \
+            --rule-map wazuh/rule_map.yml \
+            --output wazuh-results.json \
+            --fail-on-fp
+
+      - name: Upload functional results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wazuh-functional-results
+          path: wazuh-results.json
+          retention-days: 30
+
+  # ============================================================================
+  # STAGE 9: Deployment (Optional - Uncomment when ready)
   # Purpose: Deploy validated rules to target SIEMs
   # This would be environment-specific - example shows Splunk deployment
   # ============================================================================

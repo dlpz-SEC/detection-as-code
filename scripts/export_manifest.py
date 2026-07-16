@@ -68,7 +68,39 @@ def extract_technique_tags(tags: list) -> list[str]:
     return list(dict.fromkeys(techniques))
 
 
-def extract_rule_entry(rule: object, rule_path: Path, rules_dir: Path) -> Optional[dict]:
+def load_wazuh_rule_ids(rule_map_path: Optional[Path]) -> dict[str, list[str]]:
+    """
+    Map each Sigma rule id -> its alerting Wazuh rule IDs (wazuh/rule_map.yml).
+
+    Optional: a missing or unreadable map yields an empty mapping, so every
+    entry still gets `wazuh_rule_ids: []` - a visible "no Wazuh twin yet"
+    signal rather than an absent field. Suppression children (level 0) never
+    produce alerts, so they are excluded: the join key is the alert `rule.id`
+    ADTE actually sees in wazuh-alerts-*.
+    """
+    if rule_map_path is None or not rule_map_path.is_file():
+        return {}
+    try:
+        with open(rule_map_path, encoding="utf-8") as f:
+            rule_map = yaml.safe_load(f)
+    except (yaml.YAMLError, OSError) as e:
+        print(f"⚠️  Warning: could not read rule map {rule_map_path}: {e}")
+        return {}
+
+    mapping: dict[str, list[str]] = {}
+    for entry in (rule_map or {}).get("rules", []):
+        sigma_id = entry.get("sigma_id")
+        if sigma_id:
+            mapping[sigma_id] = [str(r) for r in entry.get("wazuh_rule_ids", [])]
+    return mapping
+
+
+def extract_rule_entry(
+    rule: object,
+    rule_path: Path,
+    rules_dir: Path,
+    wazuh_ids_by_sigma: Optional[dict[str, list[str]]] = None,
+) -> Optional[dict]:
     """
     Build a manifest entry for one rule, or None if it isn't production.
 
@@ -105,6 +137,10 @@ def extract_rule_entry(rule: object, rule_path: Path, rules_dir: Path) -> Option
     # byte-identical regardless of OS or how --rules-dir was spelled
     path = (Path(rules_dir.name) / rule_path.relative_to(rules_dir)).as_posix()
 
+    # Native Wazuh rule IDs for this detection (ADTE joins live alert rule.id
+    # against this list). Empty when the rule has no Wazuh twin in rule_map.yml.
+    wazuh_rule_ids = (wazuh_ids_by_sigma or {}).get(rule.get("id"), [])
+
     return {
         "id": rule.get("id"),
         "title": rule.get("title", "Unknown"),
@@ -115,6 +151,7 @@ def extract_rule_entry(rule: object, rule_path: Path, rules_dir: Path) -> Option
         "confidence_weight": CONFIDENCE_WEIGHTS.get(confidence, DEFAULT_CONFIDENCE_WEIGHT),
         "false_positive_rate": false_positive_rate,
         "tuning_notes": tuning_notes,
+        "wazuh_rule_ids": wazuh_rule_ids,
     }
 
 
@@ -139,7 +176,10 @@ def warn_on_id_issues(entries: list[dict]) -> None:
             print(f"⚠️  Warning: duplicate rule id {rule_id}: {', '.join(paths)}")
 
 
-def build_manifest(rules_dir: Path) -> dict:
+def build_manifest(
+    rules_dir: Path,
+    wazuh_ids_by_sigma: Optional[dict[str, list[str]]] = None,
+) -> dict:
     """Walk rules_dir and build the manifest dict of all production rules."""
     entries = []
 
@@ -151,7 +191,7 @@ def build_manifest(rules_dir: Path) -> dict:
             print(f"⚠️  Warning: could not parse {rule_path}: {e}")
             continue
 
-        entry = extract_rule_entry(rule, rule_path, rules_dir)
+        entry = extract_rule_entry(rule, rule_path, rules_dir, wazuh_ids_by_sigma)
         if entry is not None:
             entries.append(entry)
 
@@ -218,6 +258,12 @@ def main(argv: Optional[list[str]] = None) -> None:
         default="docs/rule_manifest.json",
         help="Manifest output path (default: docs/rule_manifest.json)"
     )
+    parser.add_argument(
+        "--rule-map",
+        default="wazuh/rule_map.yml",
+        help="Wazuh rule map for wazuh_rule_ids (default: wazuh/rule_map.yml; "
+             "optional - entries get an empty list if it's absent)"
+    )
     args = parser.parse_args(argv)
 
     rules_dir = Path(args.rules_dir)
@@ -225,7 +271,8 @@ def main(argv: Optional[list[str]] = None) -> None:
         print(f"❌ Rules directory not found: {rules_dir}")
         sys.exit(1)
 
-    manifest = build_manifest(rules_dir)
+    wazuh_ids_by_sigma = load_wazuh_rule_ids(Path(args.rule_map))
+    manifest = build_manifest(rules_dir, wazuh_ids_by_sigma)
     output_path = Path(args.output)
     changed = write_manifest(manifest, output_path)
 

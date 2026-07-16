@@ -35,6 +35,7 @@ Machine-readable export of every **production**-lifecycle detection rule, consum
 | `confidence_weight` | number | no | Derived from `confidence` (see mapping). |
 | `false_positive_rate` | string \| null | yes | `custom.false_positive_rate` (`low`/`medium`/`high`), or `null` if unset. |
 | `tuning_notes` | string \| null | yes | `custom.tuning_notes`, trimmed. Multi-line; `\n`-separated. `null` if unset. |
+| `wazuh_rule_ids` | array\<string\> | no | Native Wazuh rule IDs that implement this detection (from `wazuh/rule_map.yml`). **The live-alert join key** (see below). Empty `[]` when the rule has no Wazuh twin yet. |
 
 ¹ Schema validation (CI stage 1) enforces a valid UUID on production rules. The exporter additionally emits a non-fatal warning if it observes a missing or duplicated `id`, since either silently breaks ADTE's join.
 
@@ -56,6 +57,15 @@ This mirrors the weighting used by [`scripts/generate_coverage.py`](../scripts/g
 - **Poll `generated_at`** to detect a changed rule set; it is stable across no-op runs, so it will not churn.
 - **Check `schema_version`** before parsing. A minor addition (new optional field) keeps `1.0`; a breaking change bumps it.
 
+### Joining live Wazuh alerts back to detections
+
+ADTE reads live alerts from the Wazuh Indexer, each carrying a string `rule.id`. To recover the full detection context for an alert:
+
+1. Find the manifest entry whose `wazuh_rule_ids` contains the alert's `rule.id` (string compare — both sides are strings by design).
+2. That entry gives you the `id` (Sigma UUID), `confidence_weight`, `false_positive_rate`, `tuning_notes`, and `techniques` for the fired detection.
+
+An entry with `wazuh_rule_ids: []` has no native Wazuh twin, so it will never match a live Wazuh alert — a visible coverage gap, not an error. `wazuh_rule_ids` lists only **alerting** rules; Wazuh suppression children (level 0) never generate alerts, so they are intentionally absent.
+
 ## Example (abridged)
 
 ```json
@@ -73,7 +83,8 @@ This mirrors the weighting used by [`scripts/generate_coverage.py`](../scripts/g
       "confidence": "high",
       "confidence_weight": 1.0,
       "false_positive_rate": "low",
-      "tuning_notes": "This rule requires environment-specific tuning:\n..."
+      "tuning_notes": "This rule requires environment-specific tuning:\n...",
+      "wazuh_rule_ids": ["100100"]
     }
   ]
 }

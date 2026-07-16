@@ -386,7 +386,15 @@ class TestResult:
 
 
 def load_test_samples(samples_dir: Path) -> tuple[list[TestSample], list[TestSample]]:
-    """Load all test samples, separated by type."""
+    """
+    Load all test samples, separated by type.
+
+    A sample with no ``events`` carries only a Tier-2 ``wazuh`` payload (raw
+    log lines for the live-engine runner) and has nothing for this offline
+    evaluator to match on, so it is skipped. This mirrors
+    test_detections_wazuh.py skipping samples that have no ``wazuh`` block:
+    each tier ignores what it cannot test.
+    """
     true_positives = []
     benign = []
 
@@ -397,6 +405,9 @@ def load_test_samples(samples_dir: Path) -> tuple[list[TestSample], list[TestSam
         for filepath in sorted(tp_dir.glob("*.json")):
             try:
                 sample = TestSample.load(filepath)
+                if not sample.events:
+                    print(f"Skipping (Tier-2 only, no offline events): {filepath.stem}")
+                    continue
                 sample.event_type = "true_positive"
                 true_positives.append(sample)
             except Exception as e:
@@ -406,6 +417,9 @@ def load_test_samples(samples_dir: Path) -> tuple[list[TestSample], list[TestSam
         for filepath in sorted(benign_dir.glob("*.json")):
             try:
                 sample = TestSample.load(filepath)
+                if not sample.events:
+                    print(f"Skipping (Tier-2 only, no offline events): {filepath.stem}")
+                    continue
                 sample.event_type = "benign"
                 benign.append(sample)
             except Exception as e:

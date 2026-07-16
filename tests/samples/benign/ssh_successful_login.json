@@ -1,0 +1,15 @@
+{
+  "name": "SSH Legitimate Successful Login",
+  "description": "A normal interactive SSH login from an internal workstation. Wazuh's built-in 5715 (authentication success) fires and that is correct - what must NOT happen is our brute-force rule (100200) triggering on legitimate access.",
+  "type": "benign",
+  "source": "synthetic - modelled on sshd auth.log output",
+  "wazuh": {
+    "log_format": "syslog",
+    "location": "/var/log/auth.log",
+    "expected_rule_ids": [],
+    "events": [
+      "Jul 16 07:30:00 web-server sshd[4001]: Accepted password for david from 192.168.1.50 port 55001 ssh2",
+      "Jul 16 07:30:05 web-server sshd[4002]: pam_unix(sshd:session): session opened for user david by (uid=0)"
+    ]
+  }
+}
