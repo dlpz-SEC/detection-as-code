@@ -20,7 +20,8 @@ from wazuh_client import (
 )
 
 
-VM = "https://192.168.127.129:55000"
+# Generic RFC1918 address for tests - not any real lab host
+VM = "https://10.0.0.10:55000"
 
 
 def make_config(**overrides) -> WazuhConfig:
@@ -60,9 +61,9 @@ def make_client(config=None, **session_returns) -> tuple[WazuhManagerClient, Mag
 
 def test_url_normalisation_variants():
     """Bare host, host:port, and full URL all normalise to scheme://host:port."""
-    assert _normalise_api_url("192.168.127.129") == VM
-    assert _normalise_api_url("192.168.127.129:55000") == VM
-    assert _normalise_api_url("https://192.168.127.129") == VM
+    assert _normalise_api_url("10.0.0.10") == VM
+    assert _normalise_api_url("10.0.0.10:55000") == VM
+    assert _normalise_api_url("https://10.0.0.10") == VM
     assert _normalise_api_url("http://localhost:55001") == "http://localhost:55001"
 
 
@@ -78,7 +79,7 @@ def test_ssrf_targets_rejected(bad_host):
 
 def test_bad_scheme_rejected():
     with pytest.raises(WazuhClientError):
-        make_config(base_url="ftp://192.168.127.129")
+        make_config(base_url="ftp://10.0.0.10")
 
 
 def test_verify_ssl_false_allowed_for_private_hosts():
@@ -93,7 +94,7 @@ def test_verify_ssl_false_refused_for_public_host():
 
 
 def test_from_env_reads_variables(monkeypatch):
-    monkeypatch.setenv("DAC_WAZUH_API_HOST", "192.168.127.129")
+    monkeypatch.setenv("DAC_WAZUH_API_HOST", "10.0.0.10")
     monkeypatch.setenv("DAC_WAZUH_API_USER", "wazuh-wui")
     monkeypatch.setenv("DAC_WAZUH_API_PASS", "pw")
     monkeypatch.setenv("DAC_WAZUH_API_VERIFY_SSL", "false")
