@@ -40,13 +40,17 @@ def load_xml_rules(xml_path: Path) -> dict[str, dict]:
 
 
 def sigma_techniques(sigma_path: Path) -> set[str]:
+    # safe_load_all: correlation rule files are multi-document (base rule +
+    # correlation doc). Union the technique tags across every doc so a
+    # correlation's techniques are not lost.
     with open(sigma_path, encoding="utf-8") as f:
-        rule = yaml.safe_load(f)
+        docs = [d for d in yaml.safe_load_all(f) if isinstance(d, dict)]
     techniques = set()
-    for tag in rule.get("tags", []):
-        m = TECHNIQUE_TAG_RE.match(str(tag))
-        if m:
-            techniques.add(m.group(1).upper())
+    for rule in docs:
+        for tag in rule.get("tags", []) or []:
+            m = TECHNIQUE_TAG_RE.match(str(tag))
+            if m:
+                techniques.add(m.group(1).upper())
     return techniques
 
 
@@ -102,10 +106,13 @@ def test_sigma_ids_and_paths_agree(rule_map):
     for entry in rule_map["rules"]:
         sigma_path = REPO_ROOT / entry["sigma_path"]
         assert sigma_path.is_file(), f"missing Sigma file: {entry['sigma_path']}"
+        # safe_load_all + any-doc match: a correlation rule file carries the
+        # base rule and the correlation doc, each with its own id.
         with open(sigma_path, encoding="utf-8") as f:
-            rule = yaml.safe_load(f)
-        assert rule["id"] == entry["sigma_id"], (
-            f"{entry['sigma_path']}: id {rule['id']} != map sigma_id {entry['sigma_id']}"
+            docs = [d for d in yaml.safe_load_all(f) if isinstance(d, dict)]
+        ids = [d.get("id") for d in docs]
+        assert entry["sigma_id"] in ids, (
+            f"{entry['sigma_path']}: ids {ids} do not include map sigma_id {entry['sigma_id']}"
         )
 
 
@@ -134,12 +141,14 @@ def test_every_production_sigma_rule_is_mapped(rule_map):
     """New production Sigma rules must get a Wazuh twin (or a conscious skip here)."""
     mapped_sigma_ids = {e["sigma_id"] for e in rule_map["rules"]}
     for sigma_path in (REPO_ROOT / "rules").rglob("*.yml"):
+        # safe_load_all: correlation rule files are multi-document. Each doc is
+        # checked independently, so a production correlation doc is held to the
+        # same Wazuh-twin requirement as any other production rule.
         with open(sigma_path, encoding="utf-8") as f:
-            rule = yaml.safe_load(f)
-        if not isinstance(rule, dict):
-            continue
-        custom = rule.get("custom") or {}
-        if custom.get("lifecycle") == "production":
-            assert rule.get("id") in mapped_sigma_ids, (
-                f"production rule {sigma_path.name} has no Wazuh twin in rule_map.yml"
-            )
+            docs = [d for d in yaml.safe_load_all(f) if isinstance(d, dict)]
+        for rule in docs:
+            custom = rule.get("custom") or {}
+            if custom.get("lifecycle") == "production":
+                assert rule.get("id") in mapped_sigma_ids, (
+                    f"production rule {sigma_path.name} has no Wazuh twin in rule_map.yml"
+                )
