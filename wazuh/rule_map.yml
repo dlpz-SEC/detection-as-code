@@ -24,6 +24,18 @@ rules:
     wazuh_rule_ids: ["100200"]
     wazuh_suppression_ids: []
 
+  # Linux / syslog - mapped so deploy_wazuh_rules.py uploads it, but the Sigma
+  # rule is still lifecycle: experimental. It is NOT yet deployed and has NOT
+  # been verified against the live engine. Promote to production only after
+  # `python scripts/test_detections_wazuh.py` confirms 100210 actually fires -
+  # this repo's bar for production is live evidence, not a green structural CI.
+  - sigma_id: b7e4d1c8-3a92-4f6b-8d15-2c9e0a7f4b63
+    sigma_path: rules/linux/credential_access/ssh_password_spray.yml
+    techniques: [T1110, T1110.003]
+    wazuh_file: wazuh/rules/dac_linux.xml
+    wazuh_rule_ids: ["100210"]
+    wazuh_suppression_ids: []
+
   # Windows / Sysmon - deployed and production-correct (if_sid chain verified
   # against the live ruleset), but NOT functionally verifiable in this lab:
   # logtest cannot reproduce the internal windows_eventchannel decoder that

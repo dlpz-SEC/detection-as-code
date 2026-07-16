@@ -10,9 +10,17 @@
     5710 -> "Attempt to login using a non-existent user"  (level 5, T1110.001)
     5712 -> built-in brute force, frequency 8 / 120s      (level 10, T1110)
     5715 -> "authentication success"                      (level 3, benign)
+    5716 -> "authentication failed" (EXISTING account)    (level 5, T1110)
+    5720 -> built-in "multiple authentication failures",
+            if_matched_sid 5716, frequency 8, same_source_ip (level 10, T1110)
+
+  The 5710 and 5716 chains carry different evidence and must not be conflated:
+  5710 fires when the account does NOT exist (enumeration); 5716 fires when the
+  account EXISTS and the password was wrong (a real credential attack).
 
   Custom ID allocation: blocks of 10 per Sigma rule.
-    10020x - ssh_brute_force (sigma 0471bd9a-...)
+    10020x - ssh_brute_force   (sigma 0471bd9a-...)
+    10021x - ssh_password_spray (sigma b7e4d1c8-...)
 -->
 <group name="dac,linux,syslog,">
 
@@ -35,6 +43,41 @@
     <mitre>
       <id>T1110</id>
       <id>T1110.001</id>
+    </mitre>
+    <group>authentication_failures,credential_access,</group>
+  </rule>
+
+  <!--
+    Twin of rules/linux/credential_access/ssh_password_spray.yml
+    (sigma id b7e4d1c8-3a92-4f6b-8d15-2c9e0a7f4b63).
+
+    The Sigma rule expresses the atomic event (one failure against an EXISTING
+    account); the breadth threshold is applied here, where Wazuh's correlation
+    engine lives.
+
+    Spray is breadth, not depth: <different_user /> is the load-bearing option.
+    Without it this would be an ordinary volume rule and could not tell "one
+    account hammered 5 times" from "5 accounts touched once each".
+
+    Why this is additive rather than a duplicate of the built-in 5720:
+      5720 = if_matched_sid 5716 + same_source_ip, frequency 8, NO user
+      condition. A spray of 5 accounts x 1 attempt each is only 5 failures, so
+      5720 never fires. This rule catches it at 5 distinct accounts.
+    Chain is disjoint from 100200 by construction: 100200 hangs off 5710
+    (non-existent accounts), this hangs off 5716 (real accounts).
+
+    Level 12 matches 100200 and sits above the built-in 5720 (level 10) so a
+    breadth finding is not buried under generic failure volume.
+    ignore="60" suppresses re-alerting on the same source for 60s.
+  -->
+  <rule id="100210" level="12" frequency="5" timeframe="120" ignore="60">
+    <if_matched_sid>5716</if_matched_sid>
+    <same_source_ip />
+    <different_user />
+    <description>DAC: SSH password spray - 5+ distinct accounts from $(srcip)</description>
+    <mitre>
+      <id>T1110</id>
+      <id>T1110.003</id>
     </mitre>
     <group>authentication_failures,credential_access,</group>
   </rule>
