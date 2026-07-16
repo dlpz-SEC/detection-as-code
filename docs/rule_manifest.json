@@ -1,8 +1,25 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-07-13T19:10:26Z",
-  "rule_count": 2,
+  "generated_at": "2026-07-16T07:07:21Z",
+  "rule_count": 3,
   "rules": [
+    {
+      "id": "0471bd9a-9b43-4f31-860f-4f8bf4950058",
+      "title": "SSH Brute Force via Repeated Invalid User Logins",
+      "path": "rules/linux/credential_access/ssh_brute_force.yml",
+      "techniques": [
+        "T1110",
+        "T1110.001"
+      ],
+      "lifecycle": "production",
+      "confidence": "high",
+      "confidence_weight": 1.0,
+      "false_positive_rate": "low",
+      "tuning_notes": "Threshold lives in the Wazuh twin (rule 100200): 6 failures from the\nsame source IP in 120 seconds, tighter than Wazuh's built-in 5712 (8).\n\n1. Baseline first: internet-facing hosts see constant background\n   scanning, so expect volume before tuning.\n2. Exclude known scanner/automation source IPs by adding a level-0\n   suppression child rather than loosening the threshold.\n3. Raise the threshold before lowering fidelity - a noisy brute-force\n   rule trains analysts to ignore it.\n4. Pair with a \"success after brute force\" correlation for the case\n   that actually matters.",
+      "wazuh_rule_ids": [
+        "100200"
+      ]
+    },
     {
       "id": "9e8f2a3b-1c4d-5e6f-7a8b-9c0d1e2f3a4b",
       "title": "Suspicious LSASS Memory Access via OpenProcess",

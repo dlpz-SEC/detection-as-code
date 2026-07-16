@@ -1,0 +1,82 @@
+title: SSH Brute Force via Repeated Invalid User Logins
+id: 0471bd9a-9b43-4f31-860f-4f8bf4950058
+status: stable
+description: |
+    Detects SSH authentication failures against non-existent ("invalid") user
+    accounts. A single event is low-signal noise on any internet-facing host;
+    the detection value comes from repetition from one source, which is the
+    signature of automated password guessing.
+
+    This rule expresses the atomic event so it stays portable across SIEMs.
+    The repetition threshold is applied by the platform's correlation engine -
+    see the Wazuh twin (wazuh/rules/dac_linux.xml, rule 100200), which fires at
+    6 failures from the same source IP within 120 seconds.
+references:
+    - https://attack.mitre.org/techniques/T1110/
+    - https://attack.mitre.org/techniques/T1110/001/
+    - https://www.ssh.com/academy/ssh/brute-force
+author: Detection Engineering Team
+date: 2026/07/16
+modified: 2026/07/16
+tags:
+    - attack.credential_access
+    - attack.t1110
+    - attack.t1110.001
+logsource:
+    product: linux
+    service: sshd
+detection:
+    # sshd emits "Failed password for invalid user <u> from <ip>" when the
+    # account does not exist - distinct from a wrong password on a real account
+    selection_invalid_user:
+        keywords:
+            - 'Failed password for invalid user'
+            - 'Invalid user'
+    condition: selection_invalid_user
+
+level: medium
+
+falsepositives:
+    - Users connecting with a mistyped or stale username
+    - Decommissioned service accounts still referenced by automation
+    - Authorized vulnerability scanners and pentest tooling
+    - Monitoring probes that authenticate with rotating identities
+
+custom:
+    lifecycle: production
+    confidence: high
+    false_positive_rate: low
+
+    investigation_steps: |
+        1. Identify the source IP and check reputation (VirusTotal/AbuseIPDB).
+        2. Count distinct usernames attempted - spraying vs targeted guessing.
+        3. Check whether ANY attempt succeeded from that IP (sshd rule 5715 /
+           "Accepted password") - success after failures is an escalation.
+        4. Confirm whether the source is an expected scanner or automation host.
+        5. If external and unexpected, block at the firewall and review whether
+           SSH should be internet-facing at all.
+
+    tuning_notes: |
+        Threshold lives in the Wazuh twin (rule 100200): 6 failures from the
+        same source IP in 120 seconds, tighter than Wazuh's built-in 5712 (8).
+
+        1. Baseline first: internet-facing hosts see constant background
+           scanning, so expect volume before tuning.
+        2. Exclude known scanner/automation source IPs by adding a level-0
+           suppression child rather than loosening the threshold.
+        3. Raise the threshold before lowering fidelity - a noisy brute-force
+           rule trains analysts to ignore it.
+        4. Pair with a "success after brute force" correlation for the case
+           that actually matters.
+
+    mitre_context:
+        technique: T1110.001
+        tactic: Credential Access
+        data_sources:
+            - Logon Session: Logon Session Creation
+        platforms:
+            - Linux
+
+    owner: detection-engineering@example.com
+    review_frequency: quarterly
+    last_reviewed: 2026-07-16

@@ -14,6 +14,21 @@
 
 schema_version: "1.0"
 rules:
+  # Linux / syslog - functionally verified against the live engine (Tier 2).
+  # The Sigma rule is the atomic event; the Wazuh twin adds the 6/120s
+  # correlation threshold, which is where Wazuh's engine does the work.
+  - sigma_id: 0471bd9a-9b43-4f31-860f-4f8bf4950058
+    sigma_path: rules/linux/credential_access/ssh_brute_force.yml
+    techniques: [T1110, T1110.001]
+    wazuh_file: wazuh/rules/dac_linux.xml
+    wazuh_rule_ids: ["100200"]
+    wazuh_suppression_ids: []
+
+  # Windows / Sysmon - deployed and production-correct (if_sid chain verified
+  # against the live ruleset), but NOT functionally verifiable in this lab:
+  # logtest cannot reproduce the internal windows_eventchannel decoder that
+  # rule 60000 gates the whole Sysmon chain behind, and there is no Windows
+  # agent sending Sysmon telemetry. See docs/wazuh_functional_testing.md.
   - sigma_id: 9e8f2a3b-1c4d-5e6f-7a8b-9c0d1e2f3a4b
     sigma_path: rules/windows/credential_access/lsass_memory_access.yml
     techniques: [T1003, T1003.001]
