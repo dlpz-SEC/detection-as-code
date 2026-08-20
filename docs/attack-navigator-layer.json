@@ -2,7 +2,7 @@
   "name": "Detection Coverage",
   "version": "4.5",
   "domain": "enterprise-attack",
-  "description": "Detection coverage as of 2026-07-16",
+  "description": "Detection coverage as of 2026-08-20",
   "filters": {
     "platforms": [
       "Windows",
@@ -18,6 +18,57 @@
   },
   "hideDisabled": false,
   "techniques": [
+    {
+      "techniqueID": "T1110",
+      "score": 100,
+      "color": "#2ecc71",
+      "comment": "Rules: 4, Confidence: high",
+      "enabled": true,
+      "metadata": [
+        {
+          "name": "rule_count",
+          "value": "4"
+        },
+        {
+          "name": "confidence",
+          "value": "high"
+        }
+      ]
+    },
+    {
+      "techniqueID": "T1110.001",
+      "score": 100,
+      "color": "#2ecc71",
+      "comment": "Rules: 2, Confidence: high",
+      "enabled": true,
+      "metadata": [
+        {
+          "name": "rule_count",
+          "value": "2"
+        },
+        {
+          "name": "confidence",
+          "value": "high"
+        }
+      ]
+    },
+    {
+      "techniqueID": "T1110.003",
+      "score": 45,
+      "color": "#e67e22",
+      "comment": "Rules: 2, Confidence: low",
+      "enabled": true,
+      "metadata": [
+        {
+          "name": "rule_count",
+          "value": "2"
+        },
+        {
+          "name": "confidence",
+          "value": "low"
+        }
+      ]
+    },
     {
       "techniqueID": "T1078",
       "score": 70,
@@ -49,6 +100,40 @@
         {
           "name": "confidence",
           "value": "medium"
+        }
+      ]
+    },
+    {
+      "techniqueID": "T1003",
+      "score": 100,
+      "color": "#2ecc71",
+      "comment": "Rules: 1, Confidence: high",
+      "enabled": true,
+      "metadata": [
+        {
+          "name": "rule_count",
+          "value": "1"
+        },
+        {
+          "name": "confidence",
+          "value": "high"
+        }
+      ]
+    },
+    {
+      "techniqueID": "T1003.001",
+      "score": 100,
+      "color": "#2ecc71",
+      "comment": "Rules: 1, Confidence: high",
+      "enabled": true,
+      "metadata": [
+        {
+          "name": "rule_count",
+          "value": "1"
+        },
+        {
+          "name": "confidence",
+          "value": "high"
         }
       ]
     },
@@ -100,91 +185,6 @@
         {
           "name": "confidence",
           "value": "medium"
-        }
-      ]
-    },
-    {
-      "techniqueID": "T1003",
-      "score": 100,
-      "color": "#2ecc71",
-      "comment": "Rules: 1, Confidence: high",
-      "enabled": true,
-      "metadata": [
-        {
-          "name": "rule_count",
-          "value": "1"
-        },
-        {
-          "name": "confidence",
-          "value": "high"
-        }
-      ]
-    },
-    {
-      "techniqueID": "T1003.001",
-      "score": 100,
-      "color": "#2ecc71",
-      "comment": "Rules: 1, Confidence: high",
-      "enabled": true,
-      "metadata": [
-        {
-          "name": "rule_count",
-          "value": "1"
-        },
-        {
-          "name": "confidence",
-          "value": "high"
-        }
-      ]
-    },
-    {
-      "techniqueID": "T1110",
-      "score": 100,
-      "color": "#2ecc71",
-      "comment": "Rules: 3, Confidence: high",
-      "enabled": true,
-      "metadata": [
-        {
-          "name": "rule_count",
-          "value": "3"
-        },
-        {
-          "name": "confidence",
-          "value": "high"
-        }
-      ]
-    },
-    {
-      "techniqueID": "T1110.001",
-      "score": 100,
-      "color": "#2ecc71",
-      "comment": "Rules: 2, Confidence: high",
-      "enabled": true,
-      "metadata": [
-        {
-          "name": "rule_count",
-          "value": "2"
-        },
-        {
-          "name": "confidence",
-          "value": "high"
-        }
-      ]
-    },
-    {
-      "techniqueID": "T1110.003",
-      "score": 25,
-      "color": "#e67e22",
-      "comment": "Rules: 1, Confidence: low",
-      "enabled": true,
-      "metadata": [
-        {
-          "name": "rule_count",
-          "value": "1"
-        },
-        {
-          "name": "confidence",
-          "value": "low"
         }
       ]
     }
