@@ -55,10 +55,10 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
@@ -77,7 +77,7 @@ jobs:
             --output validation-report.json
             
       - name: Upload validation report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()  # Upload even on failure for debugging
         with:
           name: validation-report
@@ -96,10 +96,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
@@ -123,10 +123,10 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
@@ -214,10 +214,10 @@ jobs:
         
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           
@@ -272,7 +272,7 @@ jobs:
           done
           
       - name: Upload converted rules
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: converted-rules-${{ matrix.siem }}
           path: output/${{ matrix.siem }}/
@@ -290,17 +290,17 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
           cache-dependency-path: 'scripts/requirements.txt'
           
       - name: Download converted rules
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: converted-rules-splunk
           path: output/splunk/
@@ -328,7 +328,7 @@ jobs:
             --fail-on-fp  # Fail if any false positives detected
             
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: test-results
@@ -350,14 +350,14 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: main        # push target; full history so rebase-before-push works
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
@@ -367,7 +367,7 @@ jobs:
         run: pip install -r scripts/requirements.txt
 
       - name: Download test results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: test-results
           path: ./
@@ -421,13 +421,13 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: main        # pick up the coverage commit pushed by the previous job
           fetch-depth: 0   # full history so rebase-before-push works
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
@@ -479,6 +479,11 @@ jobs:
   #      EXECUTION, not the code — read the diff, every time.
   #   2. Host the runner in a disposable VM, not on the lab host, and prefer an
   #      ephemeral (--ephemeral) registration so one job cannot persist.
+  #   3. The runner must be >= v2.327.1. The actions pinned in this workflow
+  #      (checkout@v7, setup-python@v6, upload-artifact@v7) run on Node 24 and
+  #      will not start on an older runner. GitHub-hosted runners are already
+  #      current; a self-hosted one you register is YOUR responsibility to keep
+  #      updated.
   # GitHub's own guidance is to avoid self-hosted runners on public repos:
   # https://docs.github.com/actions/security-guides/security-hardening-for-github-actions#hardening-for-self-hosted-runners
   # ============================================================================
@@ -494,10 +499,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -527,7 +532,7 @@ jobs:
             --fail-on-fp
 
       - name: Upload functional results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: wazuh-functional-results
@@ -548,7 +553,7 @@ jobs:
   #   
   #   steps:
   #     - name: Download converted rules
-  #       uses: actions/download-artifact@v4
+  #       uses: actions/download-artifact@v8
   #       with:
   #         name: converted-rules-splunk
   #         path: output/splunk/
