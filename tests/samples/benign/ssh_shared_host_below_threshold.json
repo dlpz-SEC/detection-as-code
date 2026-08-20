@@ -1,0 +1,18 @@
+{
+  "name": "SSH Shared Jump Host - Mistyped Passwords Below Threshold",
+  "description": "A shared internal jump host (one egress IP for many humans) where four different users mistype their password over ~90 seconds, and one then succeeds. This is the spray rule's dominant false-positive shape - many accounts, one source IP - held below the 5-distinct-account threshold. The DaC spray rule (100210) must NOT fire. Built-in 5716 fires per failure and 5715 on the success; that is correct and expected, because benign here means 'no rule of OURS fires', not 'silence'. This sample documents where the threshold sits: a busier NAT gateway WOULD cross it and needs a level-0 suppression child, not a higher threshold - see the rule's tuning_notes.",
+  "type": "benign",
+  "source": "synthetic - modelled on sshd auth.log output",
+  "wazuh": {
+    "log_format": "syslog",
+    "location": "/var/log/auth.log",
+    "expected_rule_ids": [],
+    "events": [
+      "Jul 16 10:02:00 jump-host sshd[5201]: Failed password for alice from 192.168.1.20 port 52001 ssh2",
+      "Jul 16 10:02:28 jump-host sshd[5202]: Failed password for bob from 192.168.1.20 port 52002 ssh2",
+      "Jul 16 10:02:59 jump-host sshd[5203]: Failed password for carol from 192.168.1.20 port 52003 ssh2",
+      "Jul 16 10:03:31 jump-host sshd[5204]: Failed password for dave from 192.168.1.20 port 52004 ssh2",
+      "Jul 16 10:03:40 jump-host sshd[5205]: Accepted password for dave from 192.168.1.20 port 52005 ssh2"
+    ]
+  }
+}
