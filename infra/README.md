@@ -60,13 +60,13 @@ rows with no error.
 ```bash
 # Preview without creating anything
 az deployment sub what-if \
-  --location westus2 \
+  --location westus \
   --parameters infra/main.bicepparam
 
 # Deploy
 az deployment sub create \
   --name sentinel-lab \
-  --location westus2 \
+  --location westus \
   --parameters infra/main.bicepparam
 ```
 

@@ -24,7 +24,7 @@
 //
 //   az deployment sub create \
 //     --name sentinel-lab \
-//     --location westus2 \
+//     --location westus \
 //     --parameters infra/main.bicepparam
 //
 // (No --template-file: main.bicepparam's `using` statement supplies the
@@ -35,8 +35,8 @@ targetScope = 'subscription'
 @description('Resource group to hold the lab. Deleting this group is the teardown.')
 param resourceGroupName string = 'sc200-lab-rg'
 
-@description('Azure region for the resource group and all resources in it.')
-param location string = 'westus2'
+@description('Azure region for the resource group and all resources in it. Must match the existing law-sc200-sentinel workspace, whose region is westus and immutable — a Log Analytics workspace cannot be moved, so deploying elsewhere fails with InvalidResourceLocation.')
+param location string = 'westus'
 
 @description('Log Analytics workspace name. Sentinel is onboarded onto this workspace.')
 param workspaceName string = 'law-sc200-sentinel'
