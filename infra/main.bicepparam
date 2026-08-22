@@ -7,7 +7,11 @@ using 'main.bicep'
 // of building a fresh one. See the teardown caveat in main.bicep.
 
 param resourceGroupName = 'sc200-lab-rg'
-param location = 'westus2'
+// westus, not westus2: the existing law-sc200-sentinel workspace lives in westus,
+// and a Log Analytics workspace's region is immutable. Deploying at westus2 fails
+// with InvalidResourceLocation. The DCR must share the workspace region; the single
+// location param already couples them.
+param location = 'westus'
 param workspaceName = 'law-sc200-sentinel'
 
 // Cost guardrails. Raise deliberately, never casually.
