@@ -1,0 +1,84 @@
+# Sigma <-> Sentinel contract.
+#
+# Read by: scripts/convert_sentinel.py (which predicates to wrap, and how),
+#          scripts/deploy_sentinel_rules.py (future: what to push as analytics rules),
+#          tests/test_convert_sentinel.py (CI drift check: map <-> rules/ <-> parser).
+#
+# Mirrors wazuh/rule_map.yml. sigma_id is the join key (same UUID across repos).
+#
+# target decides how convert_sentinel.py turns the bare kusto predicate into a
+# runnable Sentinel query — every rule in rules/ MUST appear here so no rule is
+# silently unaccounted for:
+#   parser       - Sysmon rule; wrap as `Sysmon | where <predicate>` (Event table,
+#                  fields re-materialised by parsers/Sysmon.kql).
+#   native       - clean columns on a first-class table; wrap as `<table> | where ...`.
+#   unsupported  - not deployable against THIS lab; skipped with a logged reason.
+#   none         - no kusto output exists (correlation rules: pysigma-backend-kusto
+#                  raises NotImplementedError). Documented, never wrapped.
+
+schema_version: "1.0"
+
+parser:
+  name: Sysmon                       # function alias queries invoke
+  file: sentinel/parsers/Sysmon.kql  # body to deploy as a workspace function
+
+rules:
+  # --- Windows / Sysmon → Event table (parser-fronted) --------------------------
+  - sigma_id: a5c8d2e1-3f4b-5a6c-7d8e-9f0a1b2c3d4e
+    sigma_path: rules/windows/execution/powershell_encoded_command.yml
+    kusto: output/kusto/windows/execution/powershell_encoded_command.txt
+    techniques: [T1059, T1059.001, T1027]
+    target: parser
+    # Easiest to trigger at Phase 5 (benign encoded PowerShell + a suspicious flag).
+
+  - sigma_id: 9e8f2a3b-1c4d-5e6f-7a8b-9c0d1e2f3a4b
+    sigma_path: rules/windows/credential_access/lsass_memory_access.yml
+    kusto: output/kusto/windows/credential_access/lsass_memory_access.txt
+    techniques: [T1003, T1003.001]
+    target: parser
+
+  # --- Windows / authentication enrichment → not collectible here ---------------
+  - sigma_id: 7d4e2b1a-9c8f-4a6d-b2e3-1f0a5c7d8e9b
+    sigma_path: rules/windows/initial_access/terminated_account_authentication.yml
+    kusto: output/kusto/windows/initial_access/terminated_account_authentication.txt
+    techniques: [T1078, T1078.002]
+    target: unsupported
+    reason: >
+      Matches on account_status, an enrichment field absent from SecurityEvent and
+      Event. Requires an upstream identity (HR/IdP) join that this lab does not run.
+
+  # --- Windows / correlation → no kusto output ----------------------------------
+  - sigma_id: 2a9c4e6f-1b3d-4f8a-9c2e-6d5b7a0f1c3e
+    sigma_path: rules/windows/credential_access/bruteforce_failures_then_success.yml
+    kusto: null
+    techniques: [T1110, T1110.001]
+    target: none
+    reason: >
+      Sigma correlation rule. pysigma-backend-kusto raises NotImplementedError on
+      correlations (CI skips it explicitly), so there is no predicate to wrap.
+
+  - sigma_id: 9e1c7a5b-3d2f-4b8e-a6c1-4f0d9b2e6a8c
+    sigma_path: rules/windows/credential_access/password_spray_single_source.yml
+    kusto: null
+    techniques: [T1110, T1110.003]
+    target: none
+    reason: >
+      Sigma correlation rule; same NotImplementedError as above. No predicate to wrap.
+
+  # --- Linux / syslog → Syslog table, not collected by the Windows DCR ----------
+  - sigma_id: 0471bd9a-9b43-4f31-860f-4f8bf4950058
+    sigma_path: rules/linux/credential_access/ssh_brute_force.yml
+    kusto: output/kusto/linux/credential_access/ssh_brute_force.txt
+    techniques: [T1110, T1110.001]
+    target: unsupported
+    reason: >
+      Linux sshd syslog source. The lab DCR (infra/modules/dcr.bicep) collects only
+      Windows Security + Sysmon; no Linux VM and no Syslog data collection exist.
+
+  - sigma_id: b7e4d1c8-3a92-4f6b-8d15-2c9e0a7f4b63
+    sigma_path: rules/linux/credential_access/ssh_password_spray.yml
+    kusto: output/kusto/linux/credential_access/ssh_password_spray.txt
+    techniques: [T1110, T1110.003]
+    target: unsupported
+    reason: >
+      Linux sshd syslog source; same as ssh_brute_force. Not collected by the DCR.
