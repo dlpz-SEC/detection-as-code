@@ -1,0 +1,25 @@
+<Sysmon schemaversion="4.90">
+  <!--
+    Minimal Sysmon config for the detection lab — deliberately narrow to respect
+    the workspace's 1 GB/day ingestion cap. Logs ONLY the two event IDs the rule
+    corpus keys on:
+      EID 1  (ProcessCreate) -> powershell_encoded_command
+      EID 10 (ProcessAccess) -> lsass_memory_access
+    A stock Sysmon install does NOT emit EID 10 without an explicit ProcessAccess
+    rule, which is why this config exists. Widening it is a spending decision.
+  -->
+  <EventFiltering>
+    <!-- Log every process creation. onmatch="exclude" with no children = include all. -->
+    <RuleGroup groupRelation="or">
+      <ProcessCreate onmatch="exclude" />
+    </RuleGroup>
+
+    <!-- Log process access to lsass.exe only. Scoping to the target keeps EID 10
+         volume low (unfiltered ProcessAccess is extremely chatty). -->
+    <RuleGroup groupRelation="or">
+      <ProcessAccess onmatch="include">
+        <TargetImage condition="image">lsass.exe</TargetImage>
+      </ProcessAccess>
+    </RuleGroup>
+  </EventFiltering>
+</Sysmon>

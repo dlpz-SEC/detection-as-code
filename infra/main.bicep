@@ -53,6 +53,22 @@ param retentionInDays int = 90
 @description('Deploy the Windows security-events Data Collection Rule skeleton. Only useful once a VM with the Azure Monitor Agent exists.')
 param deployDataCollectionRule bool = true
 
+@description('Deploy the Windows event-source VM (Phase 2): VM + AMA + Sysmon + DCR association. STARTS COMPUTE COST. Requires deployDataCollectionRule = true.')
+param deployVm bool = false
+
+@description('Local admin username for the lab VM (used only when deployVm = true).')
+param adminUsername string = 'labadmin'
+
+@description('Local admin password for the lab VM. Required when deployVm = true — supply securely at deploy time (az prompts, or a Key Vault reference); never commit it.')
+@secure()
+param adminPassword string = ''
+
+@description('Your public IP/CIDR allowed to RDP into the lab VM, e.g. 203.0.113.4/32. Fail-closed (nobody) if empty. Used only when deployVm = true.')
+param allowedRdpSourceIp string = ''
+
+@description('Size of the lab VM. Standard_B2s is the cheap burstable default.')
+param vmSize string = 'Standard_B2s'
+
 @description('Tags applied to every resource, so an orphaned lab is identifiable at a glance.')
 param tags object = {
   project: 'sc200-detection-lab'
@@ -88,6 +104,24 @@ module securityEventsDcr 'modules/dcr.bicep' = if (deployDataCollectionRule) {
   }
 }
 
+// Phase 2 event source. Off by default (deployVm = false) so the identity/infra
+// phase costs nothing; flip it on to stand up the VM that feeds the DCR.
+module eventSourceVm 'modules/vm.bicep' = if (deployVm) {
+  name: 'event-source-vm'
+  scope: labResourceGroup
+  params: {
+    location: location
+    vmSize: vmSize
+    adminUsername: adminUsername
+    adminPassword: adminPassword
+    allowedRdpSourceIp: allowedRdpSourceIp
+    // Requires deployDataCollectionRule = true; `!` asserts the DCR module ran
+    // (deployVm without the DCR is unsupported and documented as such).
+    dataCollectionRuleId: securityEventsDcr!.outputs.dataCollectionRuleId
+    tags: tags
+  }
+}
+
 @description('Workspace GUID — this is the value ADTE needs as ADTE_SENTINEL_WORKSPACE_ID.')
 output workspaceId string = sentinelWorkspace.outputs.workspaceId
 
@@ -96,3 +130,6 @@ output workspaceResourceId string = sentinelWorkspace.outputs.workspaceResourceI
 
 @description('Resource group holding the lab. `az group delete --name <this>` is the teardown.')
 output resourceGroupName string = labResourceGroup.name
+
+@description('Public IP of the lab VM (empty unless deployVm = true). RDP here once allowedRdpSourceIp includes you.')
+output labVmPublicIp string = deployVm ? eventSourceVm!.outputs.publicIpAddress : ''

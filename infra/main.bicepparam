@@ -32,3 +32,20 @@ param retentionInDays = 90
 // associated with it. Harmless to deploy early; set false to keep the identity
 // phase minimal.
 param deployDataCollectionRule = true
+
+// --- Phase 2: Windows event source (VM) ------------------------------------
+// OFF by default — the identity/infra phase costs nothing. Flip to true to stand
+// up the VM (+ AMA + Sysmon + DCR association) that actually feeds the workspace.
+// This STARTS COMPUTE COST. See the Phase 2 section in infra/README.md.
+param deployVm = false
+
+// Required when deployVm = true (uncomment and set):
+//   param adminUsername = 'labadmin'
+//   param allowedRdpSourceIp = 'YOUR.PUBLIC.IP/32'   // lock RDP to you; empty = nobody
+//   param vmSize = 'Standard_B2s'
+//
+// NEVER put the admin password in this file (it is committed). Pass it at deploy
+// time instead, e.g.:
+//   az deployment sub create --name sentinel-lab --location westus \
+//     --parameters infra/main.bicepparam deployVm=true \
+//     --parameters adminPassword='<supplied-securely>'

@@ -16,6 +16,8 @@ deliverable.
 | `main.bicep` | Subscription-scope entry point: the resource group, then the modules below |
 | `modules/workspace.bicep` | Log Analytics workspace with a daily ingestion cap, plus Microsoft Sentinel onboarded onto it |
 | `modules/dcr.bicep` | Data Collection Rule skeleton — XPath-filtered Windows security + Sysmon events |
+| `modules/vm.bicep` | **Phase 2 (opt-in):** Windows VM + AMA + Sysmon + DCR association — the event source that feeds the DCR |
+| `modules/sysmonconfig.xml` | Minimal Sysmon config (EID 1 + 10 only) embedded into the VM's install extension |
 | `main.bicepparam` | Lab defaults (names, region, cap) |
 
 ## Cost model
@@ -49,7 +51,52 @@ decision.
 Note the destination tables differ by stream: `Microsoft-SecurityEvent` lands in
 `SecurityEvent`, while `Microsoft-Event` puts Sysmon rows in the generic `Event` table —
 not `SysmonEvent`, not `WindowsEvent`. KQL written against the wrong table returns zero
-rows with no error.
+rows with no error. Sysmon fields land inside the `Event` table's `EventData` XML rather
+than as columns, so generated detections need the `Sysmon` parser function to run — see
+[`sentinel/`](../sentinel/README.md).
+
+## Phase 2 — the event source (VM)
+
+`deployVm` (default **false**) is off so the identity/infra phase costs nothing. Flip it on
+to stand up the Windows VM that actually feeds the DCR — this is where **compute cost
+starts**. The `vm.bicep` module wires all three things a stock VM lacks:
+
+1. **Azure Monitor Agent** — the shipper.
+2. **DCR association** — binds the VM to `dcr-windows-security-events` so AMA knows what to
+   collect. Without it the agent is idle. (So `deployVm` requires `deployDataCollectionRule = true`.)
+3. **Sysmon + config** — installed by a Custom Script Extension that embeds
+   `sysmonconfig.xml` (base64, no external script host) and pulls the Sysmon binary from the
+   official Sysinternals URL. The config logs **only** EID 1 (process create) and EID 10
+   (lsass access) to stay under the 1 GB/day cap.
+
+Cost + exposure controls baked in: burstable `Standard_B2s`, a nightly **auto-shutdown**
+schedule, and an NSG RDP rule that is **fail-closed** — with no `allowedRdpSourceIp` it locks
+3389 to an unroutable address (nobody), never `*`. Set `allowedRdpSourceIp` to your public IP.
+
+```bash
+# Preview the VM addition (no cost). Supply a throwaway strong password inline.
+az deployment sub what-if \
+  --location westus \
+  --parameters infra/main.bicepparam \
+  --parameters deployVm=true allowedRdpSourceIp='YOUR.PUBLIC.IP/32' \
+  --parameters adminPassword='<supplied-securely>'
+
+# Deploy the VM (STARTS COMPUTE COST)
+az deployment sub create \
+  --name sentinel-lab \
+  --location westus \
+  --parameters infra/main.bicepparam \
+  --parameters deployVm=true allowedRdpSourceIp='YOUR.PUBLIC.IP/32' \
+  --parameters adminPassword='<supplied-securely>'
+```
+
+The admin password is a `@secure()` param — never put it in `main.bicepparam` (it is
+committed). After deploy, confirm the data path (Phase 3) before turning on any detection:
+
+```kql
+SecurityEvent | where EventID == 4625 | take 5
+Event | where Source == "Microsoft-Windows-Sysmon" | take 5
+```
 
 ## Deploying
 

@@ -226,10 +226,13 @@ jobs:
           pip install sigma-cli
           # Install backend-specific plugins
           pip install pysigma-backend-splunk
+          # pysigma-backend-microsoft365defender provides the `kusto` target too
           pip install pysigma-backend-microsoft365defender
           # Install pipeline plugins for field mappings
           pip install pysigma-pipeline-sysmon
           pip install pysigma-pipeline-windows
+          # PyYAML for the Sentinel wrap step (convert_sentinel.py)
+          pip install -r scripts/requirements.txt
           
       - name: Convert rules to ${{ matrix.siem }}
         run: |
@@ -270,12 +273,28 @@ jobs:
               }
             rm -f "$output_file.err"
           done
-          
+
+      # Event-table awareness: the raw kusto predicates use bare Sysmon field
+      # names, which do not exist as columns in the Event table the DCR feeds.
+      # Front each Sysmon rule with the `Sysmon` parser function so the query is
+      # actually runnable in the workspace. Kusto leg only — needs output/kusto.
+      - name: Wrap Sysmon queries with the Sentinel parser (Event-table-aware)
+        if: matrix.siem == 'kusto'
+        run: python scripts/convert_sentinel.py
+
       - name: Upload converted rules
         uses: actions/upload-artifact@v7
         with:
           name: converted-rules-${{ matrix.siem }}
           path: output/${{ matrix.siem }}/
+          retention-days: 90
+
+      - name: Upload Sentinel queries (parser-fronted)
+        if: matrix.siem == 'kusto'
+        uses: actions/upload-artifact@v7
+        with:
+          name: converted-rules-sentinel
+          path: output/sentinel/
           retention-days: 90
 
   # ============================================================================

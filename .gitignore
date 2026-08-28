@@ -62,3 +62,6 @@ secrets/
 # status, which rules are deployed). This repo is public; keep them local.
 Handoff.md
 LESSONS.md
+
+# Claude Code session state (worktrees, plans, local settings) — never public
+.claude/

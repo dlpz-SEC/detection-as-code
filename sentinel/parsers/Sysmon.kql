@@ -1,0 +1,55 @@
+// Sysmon — re-materialises the generic Event table's Sysmon rows as Sysmon-named columns.
+//
+// WHY THIS EXISTS
+//   The Azure Monitor Agent delivers Sysmon via the 'Microsoft-Event' stream
+//   (see infra/modules/dcr.bicep), which lands rows in the generic **Event**
+//   table — NOT SysmonEvent, NOT WindowsEvent. Inside Event, the Sysmon fields
+//   (Image, CommandLine, GrantedAccess, ...) live in the EventData XML blob, not
+//   as first-class columns. The generated detections (output/kusto/**) reference
+//   those field names directly, so they only run once this function projects the
+//   XML back into columns. KQL against the wrong table returns zero rows, no error.
+//
+// STATUS: schema-built, live-UNVERIFIED.
+//   Built to the documented Log Analytics Event schema, not yet confirmed against
+//   real rows from the lab (no VM is ingesting). The EventData quote style and the
+//   exact field presence MUST be validated at Phase 3 ("prove the data path",
+//   `Event | where Source == "Microsoft-Windows-Sysmon" | take 5`) before any
+//   analytics rule is switched on at Phase 4. See sentinel/README.md.
+//
+// DEPLOY as a workspace function with alias `Sysmon` (sentinel/rule_map.yml → parser).
+// Invoke downstream as:  Sysmon | where <predicate>
+//
+// The attribute-quote class ['"] tolerates both the single- and double-quote
+// renderings the Event table has been observed to store EventData in.
+Event
+| where Source == "Microsoft-Windows-Sysmon"
+// EventID is a native Event-table column — no extraction needed; rules gate on it first.
+| extend _xml = tostring(EventData)
+| extend
+    RuleName          = extract(@'<Data Name=[''"]RuleName[''"]>([^<]*)</Data>', 1, _xml),
+    UtcTime           = extract(@'<Data Name=[''"]UtcTime[''"]>([^<]*)</Data>', 1, _xml),
+    ProcessGuid       = extract(@'<Data Name=[''"]ProcessGuid[''"]>([^<]*)</Data>', 1, _xml),
+    ProcessId         = extract(@'<Data Name=[''"]ProcessId[''"]>([^<]*)</Data>', 1, _xml),
+    Image             = extract(@'<Data Name=[''"]Image[''"]>([^<]*)</Data>', 1, _xml),
+    CommandLine       = extract(@'<Data Name=[''"]CommandLine[''"]>([^<]*)</Data>', 1, _xml),
+    CurrentDirectory  = extract(@'<Data Name=[''"]CurrentDirectory[''"]>([^<]*)</Data>', 1, _xml),
+    User              = extract(@'<Data Name=[''"]User[''"]>([^<]*)</Data>', 1, _xml),
+    IntegrityLevel    = extract(@'<Data Name=[''"]IntegrityLevel[''"]>([^<]*)</Data>', 1, _xml),
+    Hashes            = extract(@'<Data Name=[''"]Hashes[''"]>([^<]*)</Data>', 1, _xml),
+    ParentProcessGuid = extract(@'<Data Name=[''"]ParentProcessGuid[''"]>([^<]*)</Data>', 1, _xml),
+    ParentImage       = extract(@'<Data Name=[''"]ParentImage[''"]>([^<]*)</Data>', 1, _xml),
+    ParentCommandLine = extract(@'<Data Name=[''"]ParentCommandLine[''"]>([^<]*)</Data>', 1, _xml),
+    // Process access (Sysmon EID 10)
+    SourceImage       = extract(@'<Data Name=[''"]SourceImage[''"]>([^<]*)</Data>', 1, _xml),
+    TargetImage       = extract(@'<Data Name=[''"]TargetImage[''"]>([^<]*)</Data>', 1, _xml),
+    GrantedAccess     = extract(@'<Data Name=[''"]GrantedAccess[''"]>([^<]*)</Data>', 1, _xml),
+    CallTrace         = extract(@'<Data Name=[''"]CallTrace[''"]>([^<]*)</Data>', 1, _xml)
+// Restore the XML entities that contains/endswith matching depends on. Values inside
+// <Data>...</Data> are escaped, so [^<]* above captures the whole (escaped) value;
+// decode &amp; LAST so an escaped "&amp;lt;" doesn't collapse into "<".
+| extend
+    CommandLine = replace_string(replace_string(replace_string(replace_string(replace_string(
+        CommandLine, '&quot;', '"'), '&apos;', "'"), '&lt;', '<'), '&gt;', '>'), '&amp;', '&'),
+    ParentCommandLine = replace_string(replace_string(replace_string(replace_string(replace_string(
+        ParentCommandLine, '&quot;', '"'), '&apos;', "'"), '&lt;', '<'), '&gt;', '>'), '&amp;', '&')
+| project-away _xml
