@@ -7,7 +7,9 @@ Turns the pipeline's generated KQL into **runnable Microsoft Sentinel queries**.
 supplies the parser and the wrap step that close that gap — the Sentinel analogue of
 `wazuh/`, which does the same job for the Wazuh manager.
 
-Status: In Development. The parser is **schema-built and live-unverified** — see the gate below.
+Status: **Deployed and live-validated** (2026-08-28). The parser and both analytics rules run in
+the lab workspace, and a detection has fired on real telemetry — see
+[Live verification](#live-verification--passed-2026-08-28).
 
 ## Key Components
 
@@ -24,7 +26,7 @@ Status: In Development. The parser is **schema-built and live-unverified** — s
   function (first) and each wrapped query into the workspace as scheduled analytics rules via
   the ARM REST API, verifying each by readback. Mirrors `deploy_wazuh_rules.py` (`--dry-run`,
   `--verify-only`, exit codes 0/1/2). Auth is `az login` by default, or a service principal
-  via `DAC_SENTINEL_*`. **Runs at Phase 4** — built and unit-tested, live-unverified.
+  via `DAC_SENTINEL_*`. **Deployed to the lab workspace** — all three artifacts readback-verified.
 
 ## Why the parser exists — the `Event`-table trap
 
@@ -50,23 +52,23 @@ but in this corpus those are the correlation rules, which produce no KQL at all
 **2 rules deploy to this lab today** (both Sysmon, parser-fronted). The rest are skipped for
 concrete, documented reasons, not omission.
 
-## ⚠️ Live-verification gate (Phase 3 before Phase 4)
+## Live verification — passed (2026-08-28)
 
-`Sysmon.kql` is built to the documented Log Analytics `Event` schema but has **not** been run
-against real rows — no VM is ingesting yet. Two assumptions must be confirmed at Phase 3
-("prove the data path") before any analytics rule is switched on at Phase 4:
+`Sysmon.kql` is no longer schema-only. The parser, both analytics rules, and the end-to-end
+detection path were confirmed against real rows in the lab workspace (`law-sc200-sentinel`).
 
-1. **EventData shape** — that Sysmon fields arrive as `<Data Name="…">value</Data>` and the
-   attribute-quote style matches (`Sysmon.kql` tolerates both `'` and `"`). Confirm with:
-   ```kql
-   Event | where Source == "Microsoft-Windows-Sysmon" | take 5
-   ```
-2. **Field coverage** — that every field a parser-fronted rule references is projected. The
-   unit test `tests/test_convert_sentinel.py::test_parser_covers_referenced_fields` enforces
-   this statically; live rows confirm the extraction actually populates them.
+| Check | Evidence |
+|---|---|
+| **Parser projects live rows** | `Sysmon \| summarize count() by EventID` returned EID 1 (197) and EID 10 (136) — both extracted out of the `EventData` XML into columns |
+| **Deploy is real, not dry-run** | Parser function + 2 scheduled analytics rules created in the workspace, each confirmed by readback (PUT → GET → compare) and cross-checked in the Azure Activity log |
+| **Detection fires on live telemetry** | A benign encoded-PowerShell process was executed on the event-source VM; the deployed rule's *exact* predicate returned the single matching Sysmon EID 1 row (`powershell.exe -nop -w hidden -enc …`). The invocation harness's own wrapper process was correctly excluded by `filter_azure` — a clean `1 of 1` |
 
-Do not promote a Sentinel analytics rule to "verified" on structural CI alone — this repo's
-bar is live evidence (the same standard `wazuh/rule_map.yml` holds for the Wazuh twins).
+The bar held: no Sentinel rule is promoted to "verified" on structural CI alone. The evidence
+above is live-row evidence, the same standard `wazuh/rule_map.yml` holds for the Wazuh twins.
+
+**Still open.** Incident generation and the ADTE triage hand-off are not yet captured, so the
+honest status of the full loop is **"deployed and detection-validated"** — not yet
+"incident-to-triage proven".
 
 ## Generate locally
 
@@ -83,7 +85,7 @@ python scripts/convert_sentinel.py        # -> output/sentinel/**
 `output/` is regenerated and git-ignored; the committed artifacts are the parser, the
 contract, and the tooling.
 
-## Deploy (Phase 4)
+## Deploy
 
 ```bash
 az login                                        # or set DAC_SENTINEL_CLIENT_ID/... for a SP
@@ -95,5 +97,10 @@ python scripts/deploy_sentinel_rules.py --verify-only # compare workspace to loc
 
 The parser deploys first (a rule invoking `Sysmon` before the function exists would fail
 validation). Rules deploy **enabled** — they begin evaluating on schedule immediately, so
-run this only once Phase 3 has confirmed the data path. The deploy identity needs Microsoft
-Sentinel Contributor on the workspace (write), not the Log Analytics Reader SP ADTE reads with.
+confirm the data path against live rows before pointing this at a new workspace. The deploy
+identity needs Microsoft Sentinel Contributor on the workspace (write), not the Log Analytics
+Reader SP that ADTE reads with.
+
+`output/` is git-ignored, so a fresh clone has no generated queries — run the two Generate
+steps above before deploying. `--dry-run` needs them too: artifacts load before the dry-run
+branch is taken.

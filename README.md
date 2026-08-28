@@ -6,6 +6,7 @@
   <img src="https://img.shields.io/badge/Behavioral%20Tests-TP%20%7C%20Benign-7C3AED?style=for-the-badge&logo=pytest&logoColor=white" />
   <img src="https://img.shields.io/badge/MITRE-ATT%26CK-DC2626?style=for-the-badge&logo=mitre&logoColor=white" />
   <img src="https://img.shields.io/badge/SIEM%20Outputs-SPL%20%7C%20KQL%20%7C%20ES-0A66C2?style=for-the-badge&logo=splunk&logoColor=white" />
+  <img src="https://img.shields.io/badge/Live%20Deploy-Wazuh%20%7C%20Sentinel-16A34A?style=for-the-badge&logo=microsoftazure&logoColor=white" />
 </p>
 
 Enterprise-grade CI/CD pipeline for managing Sigma detection rules with automated validation, testing, and MITRE ATT&CK coverage tracking.
@@ -26,7 +27,7 @@ detection-as-code/
 ├── .github/
 │   └── workflows/
 │       └── validate-and-deploy.yml    # Main CI/CD pipeline
-├── rules/
+├── rules/                             # Sigma rules — the single source of truth
 │   ├── windows/
 │   │   ├── credential_access/         # MITRE tactic-aligned directories
 │   │   ├── execution/
@@ -35,6 +36,16 @@ detection-as-code/
 │   └── linux/
 │       ├── execution/
 │       └── persistence/
+├── wazuh/                             # Wazuh deployment seam
+│   ├── rule_map.yml                   # Sigma <-> Wazuh rule-ID contract
+│   └── rules/                         # Native Wazuh XML (dac_windows, dac_linux)
+├── sentinel/                          # Microsoft Sentinel deployment seam
+│   ├── parsers/Sysmon.kql             # Projects the Event table's Sysmon XML into columns
+│   ├── rule_map.yml                   # Sigma <-> Sentinel contract + per-rule disposition
+│   └── README.md                      # The Event-table trap + live-verification evidence
+├── infra/                             # Bicep IaC for the burst Sentinel lab
+│   ├── main.bicep                     # Workspace + DCR + (opt-in) event-source VM
+│   └── modules/                       # workspace / dcr / vm + scoped Sysmon config
 ├── tests/
 │   ├── conftest.py                    # Makes scripts/ importable in tests
 │   ├── test_export_manifest.py        # Pytest suite for the manifest exporter
@@ -46,6 +57,11 @@ detection-as-code/
 │   ├── generate_coverage.py           # MITRE ATT&CK coverage analysis
 │   ├── test_detections.py             # Behavioral testing against samples
 │   ├── export_manifest.py             # Production-rule manifest for ADTE
+│   ├── convert_sentinel.py            # Wraps Sysmon predicates as `Sysmon | where ...`
+│   ├── deploy_sentinel_rules.py       # Deploys parser + analytics rules via ARM REST
+│   ├── sentinel_client.py             # Sentinel/ARM API client (SP or az login auth)
+│   ├── deploy_wazuh_rules.py          # Deploys native rules to a live Wazuh manager
+│   ├── wazuh_client.py                # Wazuh Manager API client
 │   ├── conftest.py                    # Excludes test_detections.py from pytest
 │   └── requirements.txt
 ├── configs/
@@ -112,6 +128,29 @@ Generates a MITRE ATT&CK coverage report with confidence weighting (main branch 
 ### 7. Rule Manifest Export
 Exports every production rule to `docs/rule_manifest.json` for downstream consumption by ADTE (main branch only, gated on the unit tests). See [ADTE Integration](#adte-integration).
 
+## Live Deployment
+
+Converted queries are not the end of the pipeline — both target SIEMs have a real, tooled deploy
+path, each with a rule-ID contract so nothing deploys silently or goes unaccounted for.
+
+| Target | Seam | Deploy tool | Status |
+|---|---|---|---|
+| **Wazuh** | [`wazuh/`](wazuh/) — native XML + `rule_map.yml` | `scripts/deploy_wazuh_rules.py` (Manager API) | Live; rules functionally verified against a real engine |
+| **Microsoft Sentinel** | [`sentinel/`](sentinel/) — `Sysmon.kql` parser + `rule_map.yml` | `scripts/deploy_sentinel_rules.py` (ARM REST) | Live; parser + 2 analytics rules deployed and **detection-validated on real telemetry** |
+
+Both deployers are readback-verifying (`PUT` → `GET` → compare) and support `--dry-run` /
+`--verify-only`. Every rule is dispositioned in its `rule_map.yml`; rules that cannot deploy to a
+given target are skipped with a **logged reason**, never dropped silently.
+
+The Sentinel path exists because generated KQL does not run as-is: the Azure Monitor Agent lands
+Sysmon in the generic `Event` table with fields buried in `EventData` XML, so a raw predicate
+matches **zero rows with no error**. [`sentinel/parsers/Sysmon.kql`](sentinel/parsers/Sysmon.kql)
+re-materialises those fields as columns; see [`sentinel/README.md`](sentinel/README.md) for the
+full trap write-up and the live-verification evidence.
+
+The lab those rules run in is itself code — [`infra/`](infra/) stands up the workspace, the data
+collection rule, and an opt-in Windows event-source VM (AMA + Sysmon) via Bicep.
+
 ## Quick Start
 
 ```bash
@@ -143,7 +182,8 @@ This pipeline publishes a machine-readable manifest of production rules for [ADT
 - **Contract:** documented in [`docs/rule_manifest_schema.md`](docs/rule_manifest_schema.md). ADTE joins incidents to detections on the rule `id`, and joins **live Wazuh alerts** on `rule.id` ∈ `wazuh_rule_ids` — recovering the full detection context (confidence, tuning notes, techniques) for anything the Wazuh engine fires.
 - **Freshness:** regenerated on every push to `main`; committed back only when rule content changes, so `generated_at` is a stable content-change watermark rather than a per-run timestamp.
 
-This closes the loop: **DaC defines detections → Wazuh runs them → ADTE triages the alerts with full rule context.**
+This closes the loop: **DaC defines detections → Wazuh and Sentinel run them → ADTE triages the
+alerts with full rule context.**
 
 ## Adding New Rules
 
