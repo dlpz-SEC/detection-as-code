@@ -9,7 +9,7 @@
 // context. Widening this is a spending decision, not a config tweak. The events
 // added here are the events billed for.
 //
-// WIDENED FOR THE DOMAIN CONTROLLER (2026-08-29). The original list assumed a
+// WIDENED FOR THE DOMAIN CONTROLLER (2026-09-03). The original list assumed a
 // standalone member server. vm.bicep now has promoteToDomainController (Phase
 // 2b, default false), and a DC emits authentication telemetry a member server
 // simply does not have. vm.bicep hands the decision here on purpose: "Widening
