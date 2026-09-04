@@ -1,0 +1,480 @@
+{
+  "tables": [
+    {
+      "columns": [
+        {
+          "name": "TimeGenerated",
+          "type": "datetime"
+        },
+        {
+          "name": "EventID",
+          "type": "int"
+        },
+        {
+          "name": "Activity",
+          "type": "string"
+        },
+        {
+          "name": "TargetUserName",
+          "type": "string"
+        },
+        {
+          "name": "SubjectUserName",
+          "type": "string"
+        },
+        {
+          "name": "Computer",
+          "type": "string"
+        },
+        {
+          "name": "IpAddress",
+          "type": "string"
+        }
+      ],
+      "name": "PrimaryResult",
+      "rows": [
+        [
+          "2026-09-04T05:23:20.2241774Z",
+          4672,
+          "4672 - Special privileges assigned to new logon.",
+          "",
+          "sc200winvm$",
+          "sc200winvm.lab.dlpz.local",
+          ""
+        ],
+        [
+          "2026-09-04T05:23:20.2242577Z",
+          4624,
+          "4624 - An account was successfully logged on.",
+          "sc200winvm$",
+          "-",
+          "sc200winvm.lab.dlpz.local",
+          "::1"
+        ],
+        [
+          "2026-09-04T05:23:23.1481303Z",
+          4672,
+          "4672 - Special privileges assigned to new logon.",
+          "",
+          "sc200winvm$",
+          "sc200winvm.lab.dlpz.local",
+          ""
+        ],
+        [
+          "2026-09-04T05:23:23.1482337Z",
+          4624,
+          "4624 - An account was successfully logged on.",
+          "sc200winvm$",
+          "-",
+          "sc200winvm.lab.dlpz.local",
+          "-"
+        ],
+        [
+          "2026-09-04T05:23:23.1840098Z",
+          4672,
+          "4672 - Special privileges assigned to new logon.",
+          "",
+          "sc200winvm$",
+          "sc200winvm.lab.dlpz.local",
+          ""
+        ],
+        [
+          "2026-09-04T05:23:23.1841111Z",
+          4624,
+          "4624 - An account was successfully logged on.",
+          "sc200winvm$",
+          "-",
+          "sc200winvm.lab.dlpz.local",
+          "-"
+        ],
+        [
+          "2026-09-04T05:23:23.2521283Z",
+          4672,
+          "4672 - Special privileges assigned to new logon.",
+          "",
+          "sc200winvm$",
+          "sc200winvm.lab.dlpz.local",
+          ""
+        ],
+        [
+          "2026-09-04T05:23:23.2522584Z",
+          4624,
+          "4624 - An account was successfully logged on.",
+          "sc200winvm$",
+          "-",
+          "sc200winvm.lab.dlpz.local",
+          "-"
+        ],
+        [
+          "2026-09-04T05:23:23.3109285Z",
+          4672,
+          "4672 - Special privileges assigned to new logon.",
+          "",
+          "sc200winvm$",
+          "sc200winvm.lab.dlpz.local",
+          ""
+        ],
+        [
+          "2026-09-04T05:23:23.3110545Z",
+          4624,
+          "4624 - An account was successfully logged on.",
+          "sc200winvm$",
+          "-",
+          "sc200winvm.lab.dlpz.local",
+          "-"
+        ],
+        [
+          "2026-09-04T05:23:23.3205528Z",
+          4672,
+          "4672 - Special privileges assigned to new logon.",
+          "",
+          "sc200winvm$",
+          "sc200winvm.lab.dlpz.local",
+          ""
+        ],
+        [
+          "2026-09-04T05:23:23.3206463Z",
+          4624,
+          "4624 - An account was successfully logged on.",
+          "sc200winvm$",
+          "-",
+          "sc200winvm.lab.dlpz.local",
+          "-"
+        ],
+        [
+          "2026-09-04T05:23:23.3253111Z",
+          4672,
+          "4672 - Special privileges assigned to new logon.",
+          "",
+          "sc200winvm$",
+          "sc200winvm.lab.dlpz.local",
+          ""
+        ],
+        [
+          "2026-09-04T05:23:23.3253998Z",
+          4624,
+          "4624 - An account was successfully logged on.",
+          "sc200winvm$",
+          "-",
+          "sc200winvm.lab.dlpz.local",
+          "-"
+        ],
+        [
+          "2026-09-04T05:23:23.3331305Z",
+          4672,
+          "4672 - Special privileges assigned to new logon.",
+          "",
+          "sc200winvm$",
+          "sc200winvm.lab.dlpz.local",
+          ""
+        ],
+        [
+          "2026-09-04T05:23:23.3333281Z",
+          4624,
+          "4624 - An account was successfully logged on.",
+          "sc200winvm$",
+          "-",
+          "sc200winvm.lab.dlpz.local",
+          "-"
+        ],
+        [
+          "2026-09-04T05:23:23.338875Z",
+          4672,
+          "4672 - Special privileges assigned to new logon.",
+          "",
+          "sc200winvm$",
+          "sc200winvm.lab.dlpz.local",
+          ""
+        ],
+        [
+          "2026-09-04T05:23:23.3389701Z",
+          4624,
+          "4624 - An account was successfully logged on.",
+          "sc200winvm$",
+          "-",
+          "sc200winvm.lab.dlpz.local",
+          "-"
+        ],
+        [
+          "2026-09-04T05:23:23.3483611Z",
+          4672,
+          "4672 - Special privileges assigned to new logon.",
+          "",
+          "sc200winvm$",
+          "sc200winvm.lab.dlpz.local",
+          ""
+        ],
+        [
+          "2026-09-04T05:23:23.3484457Z",
+          4624,
+          "4624 - An account was successfully logged on.",
+          "sc200winvm$",
+          "-",
+          "sc200winvm.lab.dlpz.local",
+          "-"
+        ],
+        [
+          "2026-09-04T05:23:23.369831Z",
+          4672,
+          "4672 - Special privileges assigned to new logon.",
+          "",
+          "sc200winvm$",
+          "sc200winvm.lab.dlpz.local",
+          ""
+        ],
+        [
+          "2026-09-04T05:23:23.3699138Z",
+          4624,
+          "4624 - An account was successfully logged on.",
+          "sc200winvm$",
+          "-",
+          "sc200winvm.lab.dlpz.local",
+          "-"
+        ],
+        [
+          "2026-09-04T05:23:23.3763359Z",
+          4672,
+          "4672 - Special privileges assigned to new logon.",
+          "",
+          "sc200winvm$",
+          "sc200winvm.lab.dlpz.local",
+          ""
+        ],
+        [
+          "2026-09-04T05:23:23.3764633Z",
+          4624,
+          "4624 - An account was successfully logged on.",
+          "sc200winvm$",
+          "-",
+          "sc200winvm.lab.dlpz.local",
+          "-"
+        ],
+        [
+          "2026-09-04T05:23:23.3838459Z",
+          4672,
+          "4672 - Special privileges assigned to new logon.",
+          "",
+          "sc200winvm$",
+          "sc200winvm.lab.dlpz.local",
+          ""
+        ],
+        [
+          "2026-09-04T05:23:23.383967Z",
+          4624,
+          "4624 - An account was successfully logged on.",
+          "sc200winvm$",
+          "-",
+          "sc200winvm.lab.dlpz.local",
+          "-"
+        ],
+        [
+          "2026-09-04T05:23:23.3894495Z",
+          4672,
+          "4672 - Special privileges assigned to new logon.",
+          "",
+          "sc200winvm$",
+          "sc200winvm.lab.dlpz.local",
+          ""
+        ],
+        [
+          "2026-09-04T05:23:23.3895733Z",
+          4624,
+          "4624 - An account was successfully logged on.",
+          "sc200winvm$",
+          "-",
+          "sc200winvm.lab.dlpz.local",
+          "-"
+        ],
+        [
+          "2026-09-04T05:23:23.4424833Z",
+          4776,
+          "4776 - The domain controller attempted to validate the credentials for an account.",
+          "a.chen",
+          "",
+          "sc200winvm.lab.dlpz.local",
+          ""
+        ],
+        [
+          "2026-09-04T05:23:23.4425476Z",
+          4625,
+          "4625 - An account failed to log on.",
+          "a.chen",
+          "-",
+          "sc200winvm.lab.dlpz.local",
+          "10.20.0.4"
+        ],
+        [
+          "2026-09-04T05:23:23.8665618Z",
+          4776,
+          "4776 - The domain controller attempted to validate the credentials for an account.",
+          "p.novak",
+          "",
+          "sc200winvm.lab.dlpz.local",
+          ""
+        ],
+        [
+          "2026-09-04T05:23:23.8666338Z",
+          4625,
+          "4625 - An account failed to log on.",
+          "p.novak",
+          "-",
+          "sc200winvm.lab.dlpz.local",
+          "10.20.0.4"
+        ],
+        [
+          "2026-09-04T05:23:24.2732993Z",
+          4776,
+          "4776 - The domain controller attempted to validate the credentials for an account.",
+          "t.walsh",
+          "",
+          "sc200winvm.lab.dlpz.local",
+          ""
+        ],
+        [
+          "2026-09-04T05:23:24.2733929Z",
+          4625,
+          "4625 - An account failed to log on.",
+          "t.walsh",
+          "-",
+          "sc200winvm.lab.dlpz.local",
+          "10.20.0.4"
+        ],
+        [
+          "2026-09-04T05:23:24.6807185Z",
+          4776,
+          "4776 - The domain controller attempted to validate the credentials for an account.",
+          "j.reyes",
+          "",
+          "sc200winvm.lab.dlpz.local",
+          ""
+        ],
+        [
+          "2026-09-04T05:23:24.6808041Z",
+          4625,
+          "4625 - An account failed to log on.",
+          "j.reyes",
+          "-",
+          "sc200winvm.lab.dlpz.local",
+          "10.20.0.4"
+        ],
+        [
+          "2026-09-04T05:23:25.0873459Z",
+          4776,
+          "4776 - The domain controller attempted to validate the credentials for an account.",
+          "svc-backup",
+          "",
+          "sc200winvm.lab.dlpz.local",
+          ""
+        ],
+        [
+          "2026-09-04T05:23:25.0874201Z",
+          4625,
+          "4625 - An account failed to log on.",
+          "svc-backup",
+          "-",
+          "sc200winvm.lab.dlpz.local",
+          "10.20.0.4"
+        ],
+        [
+          "2026-09-04T05:23:25.4997303Z",
+          4776,
+          "4776 - The domain controller attempted to validate the credentials for an account.",
+          "m.okafor",
+          "",
+          "sc200winvm.lab.dlpz.local",
+          ""
+        ],
+        [
+          "2026-09-04T05:23:25.4998115Z",
+          4625,
+          "4625 - An account failed to log on.",
+          "m.okafor",
+          "-",
+          "sc200winvm.lab.dlpz.local",
+          "10.20.0.4"
+        ],
+        [
+          "2026-09-04T05:23:25.9199487Z",
+          4776,
+          "4776 - The domain controller attempted to validate the credentials for an account.",
+          "m.okafor",
+          "",
+          "sc200winvm.lab.dlpz.local",
+          ""
+        ],
+        [
+          "2026-09-04T05:23:25.9200182Z",
+          4625,
+          "4625 - An account failed to log on.",
+          "m.okafor",
+          "-",
+          "sc200winvm.lab.dlpz.local",
+          "10.20.0.4"
+        ],
+        [
+          "2026-09-04T05:23:26.3253305Z",
+          4776,
+          "4776 - The domain controller attempted to validate the credentials for an account.",
+          "m.okafor",
+          "",
+          "sc200winvm.lab.dlpz.local",
+          ""
+        ],
+        [
+          "2026-09-04T05:23:26.3253977Z",
+          4625,
+          "4625 - An account failed to log on.",
+          "m.okafor",
+          "-",
+          "sc200winvm.lab.dlpz.local",
+          "10.20.0.4"
+        ],
+        [
+          "2026-09-04T05:23:26.7324803Z",
+          4776,
+          "4776 - The domain controller attempted to validate the credentials for an account.",
+          "m.okafor",
+          "",
+          "sc200winvm.lab.dlpz.local",
+          ""
+        ],
+        [
+          "2026-09-04T05:23:26.733964Z",
+          4672,
+          "4672 - Special privileges assigned to new logon.",
+          "",
+          "m.okafor",
+          "sc200winvm.lab.dlpz.local",
+          ""
+        ],
+        [
+          "2026-09-04T05:23:26.7340294Z",
+          4624,
+          "4624 - An account was successfully logged on.",
+          "m.okafor",
+          "-",
+          "sc200winvm.lab.dlpz.local",
+          "10.20.0.4"
+        ],
+        [
+          "2026-09-04T05:23:26.7424787Z",
+          4776,
+          "4776 - The domain controller attempted to validate the credentials for an account.",
+          "a.chen",
+          "",
+          "sc200winvm.lab.dlpz.local",
+          ""
+        ],
+        [
+          "2026-09-04T05:23:26.7428865Z",
+          4624,
+          "4624 - An account was successfully logged on.",
+          "a.chen",
+          "-",
+          "sc200winvm.lab.dlpz.local",
+          "10.20.0.4"
+        ]
+      ]
+    }
+  ]
+}

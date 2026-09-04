@@ -43,6 +43,10 @@ output/
 !configs/*.json
 # Keep coverage outputs and rule manifest
 !docs/*.json
+# Keep lab evidence exports. These are captured from a live lab that then gets
+# torn down, so they are NOT regenerable — the `*.json` blanket above would
+# silently discard the only surviving record of a build that no longer exists.
+!docs/evidence/*.json
 
 # Local testing artifacts
 validation-report.json

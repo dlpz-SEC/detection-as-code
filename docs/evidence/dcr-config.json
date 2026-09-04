@@ -1,0 +1,51 @@
+{
+  "dataFlows": [
+    {
+      "destinations": [
+        "labWorkspace"
+      ],
+      "streams": [
+        "Microsoft-SecurityEvent"
+      ]
+    },
+    {
+      "destinations": [
+        "labWorkspace"
+      ],
+      "streams": [
+        "Microsoft-Event"
+      ]
+    }
+  ],
+  "dataSources": {
+    "windowsEventLogs": [
+      {
+        "name": "securityEvents",
+        "streams": [
+          "Microsoft-SecurityEvent"
+        ],
+        "xPathQueries": [
+          "Security!*[System[(EventID=4624)]]",
+          "Security!*[System[(EventID=4625)]]",
+          "Security!*[System[(EventID=4672)]]",
+          "Security!*[System[(EventID=4728)]]",
+          "Security!*[System[(EventID=4732)]]",
+          "Security!*[System[(EventID=4768)]]",
+          "Security!*[System[(EventID=4771)]]",
+          "Security!*[System[(EventID=4776)]]"
+        ]
+      },
+      {
+        "name": "sysmonEvents",
+        "streams": [
+          "Microsoft-Event"
+        ],
+        "xPathQueries": [
+          "Microsoft-Windows-Sysmon/Operational!*[System[(EventID=1 or EventID=10)]]"
+        ]
+      }
+    ]
+  },
+  "location": "westus",
+  "name": "dcr-windows-security-events"
+}

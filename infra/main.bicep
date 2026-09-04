@@ -66,8 +66,22 @@ param adminPassword string = ''
 @description('Your public IP/CIDR allowed to RDP into the lab VM, e.g. 203.0.113.4/32. Fail-closed (nobody) if empty. Used only when deployVm = true.')
 param allowedRdpSourceIp string = ''
 
-@description('Size of the lab VM. Standard_B2s is the cheap burstable default.')
+@description('Size of the lab VM. Standard_B2s is the cheap burstable default. Bump to Standard_B2ms (8 GB) when promoteToDomainController = true: AD DS, DNS, AMA and Sysmon together will page on 4 GB.')
 param vmSize string = 'Standard_B2s'
+
+@description('Phase 2b: promote the lab VM to an Active Directory domain controller instead of leaving it a standalone event source. Requires deployVm = true and dsrmPassword. Adds one uncached data disk to the bill.')
+param promoteToDomainController bool = false
+
+@description('FQDN of the lab forest root domain. Used only when promoteToDomainController = true.')
+param domainName string = 'lab.dlpz.local'
+
+@description('NetBIOS name of the lab domain. Sign in as <this>\\<adminUsername> after promotion.')
+@maxLength(15)
+param domainNetbiosName string = 'LAB'
+
+@description('Directory Services Restore Mode password. Required when promoteToDomainController = true — supply securely at deploy time; never commit it.')
+@secure()
+param dsrmPassword string = ''
 
 @description('Tags applied to every resource, so an orphaned lab is identifiable at a glance.')
 param tags object = {
@@ -118,6 +132,10 @@ module eventSourceVm 'modules/vm.bicep' = if (deployVm) {
     // Requires deployDataCollectionRule = true; `!` asserts the DCR module ran
     // (deployVm without the DCR is unsupported and documented as such).
     dataCollectionRuleId: securityEventsDcr!.outputs.dataCollectionRuleId
+    promoteToDomainController: promoteToDomainController
+    domainName: domainName
+    domainNetbiosName: domainNetbiosName
+    dsrmPassword: dsrmPassword
     tags: tags
   }
 }
@@ -133,3 +151,9 @@ output resourceGroupName string = labResourceGroup.name
 
 @description('Public IP of the lab VM (empty unless deployVm = true). RDP here once allowedRdpSourceIp includes you.')
 output labVmPublicIp string = deployVm ? eventSourceVm!.outputs.publicIpAddress : ''
+
+@description('FQDN of the lab domain (empty unless the VM was promoted). A green deploy means promotion was STAGED — the VM still has to complete its restart before Get-ADDomain answers.')
+output labDomainName string = deployVm ? eventSourceVm!.outputs.labDomainName : ''
+
+@description('Static private IP of the domain controller, which is also the domain DNS server (empty unless the VM was promoted).')
+output domainControllerPrivateIp string = deployVm ? eventSourceVm!.outputs.domainControllerPrivateIp : ''

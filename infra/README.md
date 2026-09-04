@@ -18,6 +18,8 @@ deliverable.
 | `modules/dcr.bicep` | Data Collection Rule skeleton — XPath-filtered Windows security + Sysmon events |
 | `modules/vm.bicep` | **Phase 2 (opt-in):** Windows VM + AMA + Sysmon + DCR association — the event source that feeds the DCR |
 | `modules/sysmonconfig.xml` | Minimal Sysmon config (EID 1 + 10 only) embedded into the VM's install extension |
+| `modules/promote-dc.ps1` | **Phase 2b (opt-in):** promotes that VM to an AD DS domain controller — embedded base64 into a third extension, same pattern as the Sysmon config |
+| `scripts/seed-ad.ps1` | Run after promotion: OUs, users, groups, an SPN service account, and the audit policy that makes the DC emit Kerberos events |
 | `main.bicepparam` | Lab defaults (names, region, cap) |
 
 ## Cost model
@@ -97,6 +99,80 @@ committed). After deploy, confirm the data path (Phase 3) before turning on any 
 SecurityEvent | where EventID == 4625 | take 5
 Event | where Source == "Microsoft-Windows-Sysmon" | take 5
 ```
+
+## Phase 2b — promoting the event source to a domain controller
+
+`promoteToDomainController` (default **false**) turns that same VM into the lab's Active
+Directory domain controller instead of adding a second machine. One VM is one compute bill,
+and a lone DC is still a perfectly good Sysmon event source. The trade is a shared blast
+radius between the directory and the event source, which is right for a burst lab and wrong
+anywhere real.
+
+What changes when it is on:
+
+| Change | Why |
+|---|---|
+| Uncached data disk (LUN 0) for `NTDS.dit`, logs and SYSVOL | `caching: 'None'` is a correctness requirement, not tuning. Host write-back caching in front of a directory database can lose an acknowledged write and cause a **USN rollback** — the DC then serves objects the forest has moved past, silently. |
+| Private IP goes **static** (`10.20.0.4`) | A DC cannot float: its address is baked into the SRV records it registers. |
+| NIC resolver points at itself, with `168.63.129.16` second | A DC must resolve its own SRV records. Azure's platform resolver is listed second because AMA and Sysmon run **before** promotion and would otherwise have no DNS at all. |
+| Third extension runs `promote-dc.ps1` | Installs `AD-Domain-Services`, promotes a new forest, schedules the restart. |
+
+**Bump the VM size.** `Standard_B2s` is 4 GB, and AD DS + DNS + AMA + Sysmon together will
+page on that. Use `Standard_B2ms` (8 GB) for DC mode.
+
+```bash
+# Preview (no cost)
+az deployment sub what-if \
+  --location westus \
+  --parameters infra/main.bicepparam \
+  --parameters deployVm=true promoteToDomainController=true vmSize=Standard_B2ms \
+  --parameters allowedRdpSourceIp='YOUR.PUBLIC.IP/32' \
+  --parameters adminPassword='<supplied-securely>' dsrmPassword='<supplied-securely>'
+
+# Deploy (STARTS COMPUTE COST + one more managed disk)
+az deployment sub create \
+  --name sentinel-lab \
+  --location westus \
+  --parameters infra/main.bicepparam \
+  --parameters deployVm=true promoteToDomainController=true vmSize=Standard_B2ms \
+  --parameters allowedRdpSourceIp='YOUR.PUBLIC.IP/32' \
+  --parameters adminPassword='<supplied-securely>' dsrmPassword='<supplied-securely>'
+```
+
+> **A green deployment means promotion was *staged*, not that the domain is ready.**
+> Promotion needs a reboot, and a reboot kills a Custom Script Extension mid-run — which
+> Azure reports as a failed extension even when the promotion worked. So the script promotes
+> with `-NoRebootOnCompletion`, exits clean, and schedules the restart 60s later. The domain
+> answers roughly 2-4 minutes after that.
+
+Verify before doing anything else — sign in as `LAB\labadmin`:
+
+```powershell
+Get-ADDomain                                  # should return lab.dlpz.local
+Get-ADDomainController                        # should list this VM
+Get-Service NTDS, DNS | Select Name, Status   # both Running
+```
+
+Then seed the directory with real structure (OUs, users, groups, an SPN service account and
+the audit policy that makes the DC emit Kerberos events):
+
+```bash
+az vm run-command invoke -g sc200-lab-rg -n sc200-win-vm \
+  --command-id RunPowerShellScript \
+  --scripts @infra/scripts/seed-ad.ps1 \
+  --parameters "LabUserPasswordPlainText=<throwaway-strong-password>"
+```
+
+The password parameter is **mandatory** — omit it and the run-command fails on parameter
+binding. `seed-ad.ps1` has two parameter sets for exactly this reason: `-LabUserPassword`
+takes a `SecureString` and is the right choice from an interactive session on the DC, but
+`az vm run-command` cannot carry a SecureString, so the plaintext set exists for this path
+only. That value is visible in the ARM request and in shell history — **use a throwaway, and
+never reuse a real password here.**
+
+Promotion changes what the existing DCR sees: `4624/4625` stop being local logons and become
+**domain** authentication. The Kerberos events (`4768/4769/4771`) an AD detection needs are a
+separate, deliberate spending decision — see the event-ID inventory in `modules/dcr.bicep`.
 
 ## Deploying
 

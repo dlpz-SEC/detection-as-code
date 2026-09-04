@@ -1,0 +1,103 @@
+{
+  "capturedUtc": "2026-09-04T05:35:11Z",
+  "domain": {
+    "dnsRoot": "lab.dlpz.local",
+    "netbios": "LAB",
+    "dn": "DC=lab,DC=dlpz,DC=local",
+    "mode": "Windows2016Domain"
+  },
+  "domainController": {
+    "hostName": "sc200winvm.lab.dlpz.local",
+    "isGlobalCatalog": true,
+    "ipv4": "10.20.0.4",
+    "os": "Windows Server 2022 Datacenter Azure Edition"
+  },
+  "organizationalUnits": [
+    "OU=Domain Controllers,DC=lab,DC=dlpz,DC=local",
+    "OU=Employees,DC=lab,DC=dlpz,DC=local",
+    "OU=Finance,OU=Employees,DC=lab,DC=dlpz,DC=local",
+    "OU=IT,OU=Employees,DC=lab,DC=dlpz,DC=local",
+    "OU=Servers,DC=lab,DC=dlpz,DC=local",
+    "OU=ServiceAccounts,DC=lab,DC=dlpz,DC=local",
+    "OU=Workstations,DC=lab,DC=dlpz,DC=local"
+  ],
+  "users": [
+    {
+      "sam": "j.reyes",
+      "dn": "CN=Jordan Reyes,OU=IT,OU=Employees,DC=lab,DC=dlpz,DC=local",
+      "dept": "IT",
+      "enabled": true,
+      "spns": []
+    },
+    {
+      "sam": "m.okafor",
+      "dn": "CN=Maya Okafor,OU=IT,OU=Employees,DC=lab,DC=dlpz,DC=local",
+      "dept": "IT",
+      "enabled": true,
+      "spns": []
+    },
+    {
+      "sam": "a.chen",
+      "dn": "CN=Alex Chen,OU=Finance,OU=Employees,DC=lab,DC=dlpz,DC=local",
+      "dept": "Finance",
+      "enabled": true,
+      "spns": []
+    },
+    {
+      "sam": "p.novak",
+      "dn": "CN=Petra Novak,OU=Finance,OU=Employees,DC=lab,DC=dlpz,DC=local",
+      "dept": "Finance",
+      "enabled": true,
+      "spns": []
+    },
+    {
+      "sam": "t.walsh",
+      "dn": "CN=Tomas Walsh,OU=Finance,OU=Employees,DC=lab,DC=dlpz,DC=local",
+      "dept": "Finance",
+      "enabled": true,
+      "spns": []
+    },
+    {
+      "sam": "svc-backup",
+      "dn": "CN=svc-backup,OU=ServiceAccounts,DC=lab,DC=dlpz,DC=local",
+      "dept": "IT",
+      "enabled": true,
+      "spns": []
+    },
+    {
+      "sam": "svc-sqlreport",
+      "dn": "CN=svc-sqlreport,OU=ServiceAccounts,DC=lab,DC=dlpz,DC=local",
+      "dept": "IT",
+      "enabled": true,
+      "spns": [
+        "MSSQLSvc/sqlreport.lab.dlpz.local:1433"
+      ]
+    }
+  ],
+  "groups": [
+    {
+      "group": "IT-Admins",
+      "members": [
+        "j.reyes",
+        "m.okafor",
+        "svc-backup",
+        "svc-sqlreport"
+      ]
+    },
+    {
+      "group": "Finance-ReadOnly",
+      "members": [
+        "a.chen",
+        "p.novak",
+        "t.walsh"
+      ]
+    },
+    {
+      "group": "Domain Admins",
+      "members": [
+        "labadmin",
+        "m.okafor"
+      ]
+    }
+  ]
+}
