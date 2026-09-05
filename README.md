@@ -5,7 +5,7 @@
   <img src="https://img.shields.io/badge/CI%2FCD-Gates-111827?style=for-the-badge&logo=githubactions&logoColor=white" />
   <img src="https://img.shields.io/badge/Behavioral%20Tests-TP%20%7C%20Benign-7C3AED?style=for-the-badge&logo=pytest&logoColor=white" />
   <img src="https://img.shields.io/badge/MITRE-ATT%26CK-DC2626?style=for-the-badge&logo=mitre&logoColor=white" />
-  <img src="https://img.shields.io/badge/SIEM%20Outputs-SPL%20%7C%20KQL%20%7C%20ES-0A66C2?style=for-the-badge&logo=splunk&logoColor=white" />
+  <img src="https://img.shields.io/badge/SIEM%20Outputs-SPL%20%7C%20KQL-0A66C2?style=for-the-badge&logo=splunk&logoColor=white" />
   <img src="https://img.shields.io/badge/Live%20Deploy-Wazuh%20%7C%20Sentinel-16A34A?style=for-the-badge&logo=microsoftazure&logoColor=white" />
 </p>
 
@@ -174,6 +174,25 @@ build, the queries that confirmed the events landed in Sentinel, and its honest 
 torn down the same session, so it is not running now.** Cost model, per-phase deploy commands and
 teardown are in [`infra/README.md`](infra/README.md). Re-running the pipeline against Sentinel
 means redeploying it first.
+
+## Evidence
+
+The lab claims above are backed by captured artifacts rather than assertions. The lab is burst
+infrastructure that gets torn down after each run, so nothing here can be re-queried later — the
+capture *is* the record.
+
+- [`docs/AD_LAB_EVIDENCE.md`](docs/AD_LAB_EVIDENCE.md) — the domain-controller build: forest
+  creation, the seeded directory, the audit subcategories enabled, the live-fire authentication
+  run, and the Sentinel queries confirming those events landed. It carries an **honest-limits**
+  section naming what the run did *not* prove — the fire authenticated over NTLM, so `4768`/`4771`
+  are deployed but unexercised, and no analytics rule was armed during the window.
+- [`docs/evidence/`](docs/evidence/) — the raw JSON behind that document: directory export, DCR
+  configuration, and the live-fire query results.
+- [`sentinel/README.md`](sentinel/README.md) — the `Event`-table trap and the live verification of
+  the encoded-PowerShell detection against real telemetry.
+
+Each document states its own limits alongside its results, on the principle that evidence which
+overstates itself is worse than none.
 
 ## Quick Start
 
