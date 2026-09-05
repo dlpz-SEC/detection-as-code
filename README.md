@@ -31,11 +31,9 @@ detection-as-code/
 │   ├── windows/
 │   │   ├── credential_access/         # MITRE tactic-aligned directories
 │   │   ├── execution/
-│   │   ├── persistence/
-│   │   └── discovery/
+│   │   └── initial_access/
 │   └── linux/
-│       ├── execution/
-│       └── persistence/
+│       └── credential_access/
 ├── wazuh/                             # Wazuh deployment seam
 │   ├── rule_map.yml                   # Sigma <-> Wazuh rule-ID contract
 │   └── rules/                         # Native Wazuh XML (dac_windows, dac_linux)
@@ -44,18 +42,26 @@ detection-as-code/
 │   ├── rule_map.yml                   # Sigma <-> Sentinel contract + per-rule disposition
 │   └── README.md                      # The Event-table trap + live-verification evidence
 ├── infra/                             # Bicep IaC for the burst Sentinel lab
-│   ├── main.bicep                     # Workspace + DCR + (opt-in) event-source VM
-│   └── modules/                       # workspace / dcr / vm + scoped Sysmon config
-├── tests/
+│   ├── main.bicep                     # Workspace + DCR + opt-in VM / domain controller
+│   ├── main.bicepparam                # Pinned sub/RG/name/region (see infra/README.md)
+│   ├── modules/                       # workspace / dcr / vm + scoped Sysmon config
+│   │   └── promote-dc.ps1             # AD DS promotion, via runCommands (Phase 2b)
+│   ├── scripts/
+│   │   ├── seed-ad.ps1                # OUs, users, groups, SPN, audit subcategories
+│   │   └── fire-domain-logons.ps1     # Live-fire auth telemetry against the DC
+│   └── README.md                      # Cost model, phase-by-phase deploy, teardown
+├── tests/                             # Pytest suite for the pipeline tooling
 │   ├── conftest.py                    # Makes scripts/ importable in tests
-│   ├── test_export_manifest.py        # Pytest suite for the manifest exporter
+│   ├── test_export_manifest.py        # Manifest exporter; sibling suites cover the
+│   │                                  #   converter, both deployers, and both clients
 │   └── samples/
 │       ├── true_positives/            # Log samples that SHOULD trigger rules
 │       └── benign/                    # Log samples that should NOT trigger
 ├── scripts/
 │   ├── validate_rules.py              # Schema + custom field validation
 │   ├── generate_coverage.py           # MITRE ATT&CK coverage analysis
-│   ├── test_detections.py             # Behavioral testing against samples
+│   ├── test_detections.py             # Tier-1 behavioral testing (offline, in-repo AST)
+│   ├── test_detections_wazuh.py       # Tier-2 functional testing (live Wazuh engine)
 │   ├── export_manifest.py             # Production-rule manifest for ADTE
 │   ├── convert_sentinel.py            # Wraps Sysmon predicates as `Sysmon | where ...`
 │   ├── deploy_sentinel_rules.py       # Deploys parser + analytics rules via ARM REST
@@ -65,13 +71,19 @@ detection-as-code/
 │   ├── conftest.py                    # Excludes test_detections.py from pytest
 │   └── requirements.txt
 ├── configs/
-│   ├── sigma_config.yml               # Field mappings for SIEM conversion
-│   └── coverage_config.yml            # MITRE technique weights/priorities
+│   ├── coverage_config.yml            # MITRE technique weights/priorities
+│   └── sigma_config.yml               # Field mappings. NOT wired in: CI converts with
+│                                      #   `--pipeline sysmon` and nothing reads this file,
+│                                      #   so rules use raw Sysmon field names.
 ├── docs/
 │   ├── COVERAGE.md                    # Auto-generated coverage report
+│   ├── attack-navigator-layer.json    # Auto-generated ATT&CK Navigator layer
 │   ├── rule_manifest.json             # Auto-generated production-rule manifest
 │   ├── rule_manifest_schema.md        # Manifest schema / ADTE contract
-│   └── RULE_STANDARD.md               # Rule authoring guidelines
+│   ├── RULE_STANDARD.md               # Rule authoring guidelines
+│   ├── wazuh_functional_testing.md    # Tier-2 functional testing write-up
+│   ├── AD_LAB_EVIDENCE.md             # Domain-controller build evidence + honest limits
+│   └── evidence/                      # Captured JSON backing AD_LAB_EVIDENCE.md
 ├── pytest.ini                         # Pytest config (testpaths = tests)
 └── README.md
 ```
@@ -135,8 +147,8 @@ path, each with a rule-ID contract so nothing deploys silently or goes unaccount
 
 | Target | Seam | Deploy tool | Status |
 |---|---|---|---|
-| **Wazuh** | [`wazuh/`](wazuh/) — native XML + `rule_map.yml` | `scripts/deploy_wazuh_rules.py` (Manager API) | Live; rules functionally verified against a real engine |
-| **Microsoft Sentinel** | [`sentinel/`](sentinel/) — `Sysmon.kql` parser + `rule_map.yml` | `scripts/deploy_sentinel_rules.py` (ARM REST) | Live; parser + 2 analytics rules deployed and **detection-validated on real telemetry** |
+| **Wazuh** | [`wazuh/`](wazuh/) — native XML + `rule_map.yml` | `scripts/deploy_wazuh_rules.py` (Manager API) | Rules functionally verified against a **live engine**, not just converted (Tier 2) |
+| **Microsoft Sentinel** | [`sentinel/`](sentinel/) — `Sysmon.kql` parser + `rule_map.yml` | `scripts/deploy_sentinel_rules.py` (ARM REST) | Parser + 2 analytics rules deployed and **detection-validated on live telemetry** |
 
 Both deployers are readback-verifying (`PUT` → `GET` → compare) and support `--dry-run` /
 `--verify-only`. Every rule is dispositioned in its `rule_map.yml`; rules that cannot deploy to a
@@ -148,8 +160,20 @@ matches **zero rows with no error**. [`sentinel/parsers/Sysmon.kql`](sentinel/pa
 re-materialises those fields as columns; see [`sentinel/README.md`](sentinel/README.md) for the
 full trap write-up and the live-verification evidence.
 
-The lab those rules run in is itself code — [`infra/`](infra/) stands up the workspace, the data
-collection rule, and an opt-in Windows event-source VM (AMA + Sysmon) via Bicep.
+The lab those rules run in is itself code. [`infra/`](infra/) stands up the Log Analytics
+workspace, the data collection rule, and an opt-in Windows Server 2022 event-source VM (AMA +
+Sysmon) via Bicep. That VM can be promoted in-template to an **Active Directory domain
+controller** (`promoteToDomainController`, Phase 2b): `promote-dc.ps1` installs AD DS and creates
+the forest, `seed-ad.ps1` seeds OUs, users, groups, a Kerberoastable SPN and the audit
+subcategories, and `fire-domain-logons.ps1` generates real authentication telemetry against it.
+The DCR is widened to collect the resulting `4624/4625/4672/4768/4771/4776` and friends. The
+build, the queries that confirmed the events landed in Sentinel, and its honest limits are in
+[`docs/AD_LAB_EVIDENCE.md`](docs/AD_LAB_EVIDENCE.md).
+
+**The Azure lab is deliberately burst infrastructure: it is stood up, exercised, evidenced, and
+torn down the same session, so it is not running now.** Cost model, per-phase deploy commands and
+teardown are in [`infra/README.md`](infra/README.md). Re-running the pipeline against Sentinel
+means redeploying it first.
 
 ## Quick Start
 
@@ -162,10 +186,10 @@ pip install sigma-cli
 python -m pytest
 
 # Validate a single rule
-sigma check rules/windows/credential_access/lsass_access.yml
+sigma check rules/windows/credential_access/lsass_memory_access.yml
 
 # Convert to Splunk SPL
-sigma convert -t splunk rules/windows/credential_access/lsass_access.yml
+sigma convert -t splunk rules/windows/credential_access/lsass_memory_access.yml
 
 # Generate coverage report
 python scripts/generate_coverage.py --output docs/COVERAGE.md
