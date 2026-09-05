@@ -82,7 +82,11 @@ coverage-report.json
 *.log
 
 # Secrets (never commit these)
-.env
+# *.env catches .env plus notes.env / lab.env in any directory; .env.* catches
+# .env.local and friends. .env.example is the committed template, so re-include it.
+*.env
+.env.*
+!.env.example
 *.pem
 *.key
 secrets/
