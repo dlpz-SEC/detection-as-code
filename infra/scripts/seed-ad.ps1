@@ -704,11 +704,29 @@ try {
     Write-Output '=============================================================='
 
     $labOuNames = 'Workstations', 'Servers', 'ServiceAccounts', 'Employees', 'IT', 'Finance'
-    $foundOus = Get-ADOrganizationalUnit -Filter * -SearchBase $DomainDistinguishedName |
+    # -Properties ProtectedFromAccidentalDeletion is REQUIRED here and its absence
+    # was a real bug. That property is CONSTRUCTED - the AD module derives it from
+    # the object's ACL rather than reading a stored attribute - so it is not in
+    # this cmdlet's default property set. Omit the request and it comes back
+    # $null, which is falsy, and a bare truth test then prints UNPROTECTED for an
+    # OU that is in fact protected. That is what happened on the 2026-09-03 run:
+    # New-LabOu passes -ProtectedFromAccidentalDeletion $true and did not error,
+    # yet every OU reported UNPROTECTED, and that false reading was carried into
+    # docs/AD_LAB_EVIDENCE.md as a finding about the directory. It was a finding
+    # about this read-back.
+    $foundOus = Get-ADOrganizationalUnit -Filter * -SearchBase $DomainDistinguishedName `
+        -Properties ProtectedFromAccidentalDeletion |
         Where-Object { $labOuNames -contains $_.Name }
     Write-Output ("OUs (lab)          : {0} of {1} present" -f @($foundOus).Count, $labOuNames.Count)
     foreach ($ou in ($foundOus | Sort-Object DistinguishedName)) {
-        $protection = if ($ou.ProtectedFromAccidentalDeletion) { 'protected' } else { 'UNPROTECTED' }
+        # $null is reported as UNKNOWN rather than folded into $false, so a future
+        # property-set change surfaces as a read-back failure instead of a silent
+        # wrong answer. Same rule the auditpol block below follows with UNREADABLE:
+        # "could not read it" and "it is off" are different sentences.
+        $protected = $ou.ProtectedFromAccidentalDeletion
+        $protection = if ($null -eq $protected) { 'UNKNOWN (property not returned)' }
+                      elseif ($protected)       { 'protected' }
+                      else                      { 'UNPROTECTED' }
         Write-Output ("                     {0}  [{1}]" -f $ou.DistinguishedName, $protection)
     }
 

@@ -186,9 +186,19 @@ Recorded because evidence that overstates itself is worse than none.
   live in `rules/` and were not deployed as scheduled analytics rules during this window, so
   this evidence proves the *telemetry path* and the *detection shape*, not an end-to-end
   incident. Incident-to-triage remains Phase 6 and is still unproven.
-- **The OUs were created `UNPROTECTED`** despite `seed-ad.ps1` documenting
-  `-ProtectedFromAccidentalDeletion`. A real discrepancy between the script's stated intent
-  and its behavior, unfixed at capture time.
+- **The `UNPROTECTED` reading on the OUs was a reporting bug, and the true state is now
+  unverifiable.** This bullet previously recorded it as a real discrepancy between
+  `seed-ad.ps1`'s stated intent and its behavior. That was wrong, and the correction is
+  itself worth recording. `ProtectedFromAccidentalDeletion` is a *constructed* property that
+  the AD module derives from the object's ACL, and it is not in `Get-ADOrganizationalUnit`'s
+  default property set. The verification block queried without `-Properties`, so the property
+  came back `$null`, and a bare truth test printed `UNPROTECTED` for every OU regardless of
+  its actual ACL. `New-LabOu` passes `-ProtectedFromAccidentalDeletion $true` and the seed
+  reported `0 failed`, so there is no evidence the creation path ever misbehaved - but the
+  lab was torn down the same night, so **the ACLs cannot now be re-read to prove it either
+  way.** Fixed in `seed-ad.ps1` on 2026-09-04: the query requests the property, and `$null`
+  now reports as `UNKNOWN (property not returned)` rather than being folded into `false`. Any
+  future run produces a real measurement; this one did not.
 - The lab used a single shared password across all seven accounts, which is a lab convenience
   and not a model of provisioning.
 
