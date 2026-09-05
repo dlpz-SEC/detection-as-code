@@ -48,6 +48,31 @@ output/
 # silently discard the only surviving record of a build that no longer exists.
 !docs/evidence/*.json
 
+# Screenshots and images — DENY BY DEFAULT, and the default is the point.
+# An image is opaque to every guard in this repo: code review, grep, and the CI
+# checks all read text, so a credential baked into pixels passes all of them
+# without a warning. This repo is public, and per LESSONS 2026-08-28 GitHub keeps
+# `refs/pull/N/head` forever — an image committed once cannot be withdrawn by a
+# history rewrite. The cost of this rule is one negation line when you genuinely
+# want to publish a picture; the cost of not having it is permanent.
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.webp
+*.tif
+*.tiff
+# Redacted evidence only. Nothing goes here until the sensitive regions are
+# covered with SOLID fill — blur and pixelation are partially reversible — and
+# the redacted file has been reopened and visually confirmed. Keep unredacted
+# originals OUTSIDE the repo entirely rather than ignored inside it: an ignored
+# file is still one `git add -f` or one pattern change away from being staged.
+!docs/evidence/screenshots/*.png
+!docs/evidence/screenshots/*.jpg
+!docs/evidence/screenshots/*.jpeg
+!docs/evidence/screenshots/*.webp
+
 # Local testing artifacts
 validation-report.json
 test-results.json
