@@ -18,7 +18,7 @@ deliverable.
 | `modules/dcr.bicep` | Data Collection Rule skeleton — XPath-filtered Windows security + Sysmon events |
 | `modules/vm.bicep` | **Phase 2 (opt-in):** Windows VM + AMA + Sysmon + DCR association — the event source that feeds the DCR |
 | `modules/sysmonconfig.xml` | Minimal Sysmon config (EID 1 + 10 only) embedded into the VM's install extension |
-| `modules/promote-dc.ps1` | **Phase 2b (opt-in):** promotes that VM to an AD DS domain controller — embedded base64 into a third extension, same pattern as the Sysmon config |
+| `modules/promote-dc.ps1` | **Phase 2b (opt-in):** promotes that VM to an AD DS domain controller — inlined into a `runCommands` resource that runs after the AMA and Sysmon extensions |
 | `scripts/seed-ad.ps1` | Run after promotion: OUs, users, groups, an SPN service account, and the audit policy that makes the DC emit Kerberos events |
 | `main.bicepparam` | Lab defaults (names, region, cap) |
 
@@ -43,9 +43,11 @@ Retention stays at 90 days — free for as long as Sentinel is onboarded on this
 billing for as long as the workspace exists. Setting it lower than 90 discards retention
 that costs nothing.
 
-The DCR's XPath queries are narrow on purpose — the specific event IDs the rule corpus
-actually keys on, verified against `rules/` rather than assumed: Security 4625 (two rules)
-and 4624 (investigation context), plus Sysmon EID 1 and 10. A single Windows VM running
+The DCR's XPath queries are narrow on purpose. On every associated host it collects Security
+4625 (two rules) and 4624 (investigation context), plus Sysmon EID 1 and 10. With
+`collectDirectoryAuthEvents` (on by default, for the domain controller) it adds 4672, 4728,
+4732, 4768, 4771 and 4776; `modules/dcr.bicep` justifies each one and records why 4769, 5136,
+4720, 4756 and 4688 stay out. A single Windows VM running
 attack simulations will exhaust a 1 GB/day cap if you collect everything — collecting the
 whole Sysmon Operational channel alone can do it. Widening the XPath list is a spending
 decision.
@@ -115,7 +117,7 @@ What changes when it is on:
 | Uncached data disk (LUN 0) for `NTDS.dit`, logs and SYSVOL | `caching: 'None'` is a correctness requirement, not tuning. Host write-back caching in front of a directory database can lose an acknowledged write and cause a **USN rollback** — the DC then serves objects the forest has moved past, silently. |
 | Private IP goes **static** (`10.20.0.4`) | A DC cannot float: its address is baked into the SRV records it registers. |
 | NIC resolver points at itself, with `168.63.129.16` second | A DC must resolve its own SRV records. Azure's platform resolver is listed second because AMA and Sysmon run **before** promotion and would otherwise have no DNS at all. |
-| Third extension runs `promote-dc.ps1` | Installs `AD-Domain-Services`, promotes a new forest, schedules the restart. |
+| A run command (`virtualMachines/runCommands`) runs `promote-dc.ps1` after the AMA and Sysmon extensions | Installs `AD-Domain-Services`, promotes a new forest, schedules the restart. Synchronous, and a failure fails the deployment. |
 
 **Bump the VM size.** `Standard_B2s` is 4 GB, and AD DS + DNS + AMA + Sysmon together will
 page on that. Use `Standard_B2ms` (8 GB) for DC mode.
@@ -140,8 +142,9 @@ az deployment sub create \
 ```
 
 > **A green deployment means promotion was *staged*, not that the domain is ready.**
-> Promotion needs a reboot, and a reboot kills a Custom Script Extension mid-run — which
-> Azure reports as a failed extension even when the promotion worked. So the script promotes
+> Promotion needs a reboot, and a reboot kills the run command mid-run — which Azure would
+> report as a failed run command, and so a failed deployment, even when the promotion worked.
+> So the script promotes
 > with `-NoRebootOnCompletion`, exits clean, and schedules the restart 60s later. The domain
 > answers roughly 2-4 minutes after that.
 
@@ -229,10 +232,11 @@ silently overwrites the first. Pass `--outfile` if you want to inspect either re
 ## What is deliberately not here
 
 - **Analytics rules.** Detections are authored as Sigma in `rules/`, validated by CI, and
-  deployed to Sentinel from the pipeline — not hand-written into an infrastructure
-  template. Infrastructure creates the workspace; the pipeline fills it.
-- **VM and agent resources.** The Windows host used for live-fire testing is created for
-  a specific simulation run and deallocated between them; it doesn't belong in the
-  always-redeployed base.
+  deployed to Sentinel by `scripts/deploy_sentinel_rules.py`, run by hand rather than from
+  CI — not hand-written into an infrastructure template. Infrastructure creates the
+  workspace; the deploy script fills it.
+- **An always-on event source.** The Windows VM in `modules/vm.bicep` is opt-in
+  (`deployVm`, false in `main.bicepparam`) and exists only for a simulation run; the base
+  deployment is the workspace and the DCR alone.
 - **Secrets of any kind.** The service principal ADTE authenticates with is created out of
   band and its credentials live in a local `.env` file. Nothing here reads or writes one.

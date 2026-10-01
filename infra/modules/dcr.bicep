@@ -125,12 +125,11 @@
 // is exactly the half that 4771 and 4776 need to be worth collecting. Confirm
 // on the host with `auditpol /get /category:*` rather than assuming.
 //
-// NOT YET SATISFIED: infra/README.md points at infra/scripts/seed-ad.ps1 for
-// "the audit policy that makes the DC emit Kerberos events". That script does
-// not exist in the repo at the time of this edit. Until it does, or until
-// auditpol is set by hand, the Kerberos XPaths below are correctly configured
-// and produce nothing. TODO: confirm audit policy on the promoted DC before
-// concluding a detection has no hits.
+// SATISFIED BY infra/scripts/seed-ad.ps1, which sets these subcategories with
+// auditpol, Failure included for Kerberos Authentication Service. Credential
+// Validation (4776) is left at the DC's default. Still confirm on the promoted
+// DC with `auditpol /get /category:*` before concluding a detection has no
+// hits: the XPaths below collect only what the host actually audits.
 //
 // ---------------------------------------------------------------------------
 // INGESTION ESTIMATE against dailyQuotaGb = 1. This is an ESTIMATE, not a

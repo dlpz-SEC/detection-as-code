@@ -352,12 +352,13 @@ resource sysmon 'Microsoft.Compute/virtualMachines/extensions@2023-09-01' = {
   }
 }
 
-// AD DS promotion (Phase 2b). Runs LAST of the three extensions, and the order
-// is load-bearing: promotion reboots the machine, so anything sequenced after
-// it would be interrupted. Sysmon must already be installed and AMA must
-// already be registered before the box drops.
+// AD DS promotion (Phase 2b). A run command, not a third extension, and it runs
+// LAST, after the AMA and Sysmon extensions. The order is load-bearing:
+// promotion reboots the machine, so anything sequenced after it would be
+// interrupted. Sysmon must already be installed and AMA must already be
+// registered before the box drops.
 //
-// The extension reports success once promote-dc.ps1 exits; the restart it
+// The run command reports success once promote-dc.ps1 exits; the restart it
 // schedules happens ~60s later and the domain is live 2-4 minutes after that.
 // A green deployment therefore means "promotion staged", not "domain ready" -
 // verify with Get-ADDomain before running the seed script.

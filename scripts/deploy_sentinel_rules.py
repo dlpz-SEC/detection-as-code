@@ -13,10 +13,11 @@ upload-then-verify discipline deploy_wazuh_rules.py uses for the Wazuh manager.
 The parser goes first: a rule that invokes `Sysmon` before the function exists
 would fail validation.
 
-STATUS: built, live-UNVERIFIED. No workspace has been reachable this session
-(no `az login`). This runs at Phase 4, after Phase 3 confirms the data path and
-the parser against real rows. Deploying an *enabled* analytics rule starts it
-evaluating on schedule — treat as a live change, not a smoke test.
+STATUS: run live on 2026-08-28 against the lab workspace. The parser function
+and both analytics rules deployed and verified by readback (sentinel/README.md
+has the evidence); the lab has since been torn down. Deploying an *enabled*
+analytics rule starts it evaluating on schedule — treat as a live change, not a
+smoke test.
 
 Exit codes: 0 deployed/verified, 1 verification mismatch, 2 infra/config failure.
 """

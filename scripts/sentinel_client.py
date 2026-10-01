@@ -15,8 +15,9 @@ Mirrors wazuh_client.py: env-driven config, one custom exception, a thin
 The ARM and AAD hosts are constants (never user-controlled), so there is no
 SSRF surface to guard as there is on the Wazuh side.
 
-STATUS: built, live-UNVERIFIED — no workspace has been reachable to exercise it
-against (no `az login` this session). Confirm at Phase 4 before trusting a green.
+STATUS: exercised live on 2026-08-28 by deploy_sentinel_rules.py (deploy and
+readback against the lab workspace). It has no unit tests of its own; the
+deployer's tests replace it with a mock.
 
 Token source (in order):
   1. Service principal, if DAC_SENTINEL_CLIENT_ID / _CLIENT_SECRET / _TENANT_ID

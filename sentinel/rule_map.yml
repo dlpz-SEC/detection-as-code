@@ -1,7 +1,7 @@
 # Sigma <-> Sentinel contract.
 #
 # Read by: scripts/convert_sentinel.py (which predicates to wrap, and how),
-#          scripts/deploy_sentinel_rules.py (future: what to push as analytics rules),
+#          scripts/deploy_sentinel_rules.py (what to push as analytics rules),
 #          tests/test_convert_sentinel.py (CI drift check: map <-> rules/ <-> parser).
 #
 # Mirrors wazuh/rule_map.yml. sigma_id is the join key (same UUID across repos).

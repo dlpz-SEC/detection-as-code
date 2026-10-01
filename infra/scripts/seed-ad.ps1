@@ -85,12 +85,13 @@
         4768 volume from a DC is not comparable to 4624 volume from a member
         server. The lab's workspace has a 1 GB/day ingestion cap
         (infra/main.bicepparam), and that cap overshoots.
-      - The DCR (infra/modules/dcr.bicep) currently collects only 4624, 4625 and
-        Sysmon EID 1/10. So 4768 and 4769 are EMITTED to the local Security log
-        by this script and are NOT ingested into Sentinel. Nothing is broken;
-        that is the current, deliberate scope. Adding the Kerberos IDs to the
-        DCR's XPath list is a spending decision, not a config tweak - make it
-        alongside the T1558.003 rule that needs them, not before.
+      - The DCR (infra/modules/dcr.bicep) collects 4624, 4625, 4672, 4728, 4732,
+        4768, 4771 and 4776 (collectDirectoryAuthEvents, on by default) plus
+        Sysmon EID 1/10. 4769 is EMITTED to the local Security log by this
+        script and is NOT ingested into Sentinel: it is the highest-volume event
+        on a DC and no rule consumes it. Adding it to the DCR's XPath list is a
+        spending decision, not a config tweak - make it alongside the T1558.003
+        rule that needs it, not before.
       - The local Security event log is a ring buffer. A DC with these
         subcategories on can roll it faster than you expect. Check the current
         size and retention with `wevtutil gl Security` before assuming an event
@@ -602,10 +603,9 @@ try {
     #   Special Logon                    -> 4672. THE PRIVILEGED MARKER. This is
     #                                       what makes m.okafor's Domain Admins
     #                                       membership visible in telemetry.
-    #                                       Note dcr.bicep deliberately does NOT
-    #                                       collect 4672 today - it is emitted
-    #                                       here, ingesting it is a separate
-    #                                       spending decision.
+    #                                       dcr.bicep collects 4672 when
+    #                                       collectDirectoryAuthEvents is on
+    #                                       (the default).
     #   Account Lockout                  -> 4625 with status 0xC0000234, the
     #                                       lockout-specific failure. Separating
     #                                       "locked out" from "wrong password"
@@ -804,8 +804,8 @@ try {
     Write-Output "Transcript         : $transcript"
     Write-Output '=============================================================='
     Write-Output ''
-    Write-Output 'Reminder: the DC now EMITS 4768/4769/4672. dcr.bicep does not INGEST them.'
-    Write-Output 'Widening the DCR XPath is a spending decision - make it with the rule that needs it.'
+    Write-Output 'Reminder: the DC now EMITS 4768/4769/4672. dcr.bicep ingests 4768 and 4672, not 4769.'
+    Write-Output 'Adding 4769 to the DCR XPath is a spending decision - make it with the rule that needs it.'
 
     if ($script:Failed -gt 0) {
         # Exit non-zero so a partial seed is not reported as a green run. The

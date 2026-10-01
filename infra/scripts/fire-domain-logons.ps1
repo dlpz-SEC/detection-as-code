@@ -122,8 +122,9 @@ try {
     Write-Step ("WINDOW START (UTC): {0:yyyy-MM-ddTHH:mm:ssZ}" -f $startUtc)
 
     # ValidateCredentials performs a real authentication against the DC, so it
-    # produces genuine 4624/4625/4768/4771 records rather than synthetic rows
-    # written into a log. That authenticity is the entire point: the evidence has
+    # produces genuine records (4625/4776 on failure, 4624 on success; NTLM, see
+    # the header) rather than synthetic rows written into a log. That
+    # authenticity is the entire point: the evidence has
     # to be indistinguishable from production telemetry.
     $ctx = New-Object System.DirectoryServices.AccountManagement.PrincipalContext(
         [System.DirectoryServices.AccountManagement.ContextType]::Domain, $dnsRoot)
@@ -174,7 +175,7 @@ try {
     Write-Step "Now the success, which is what turns noise into an incident."
     $success = $ctx.ValidateCredentials($BruteForceTarget, $LabUserPasswordPlainText)
     if ($success) {
-        Write-Step "SUCCESS-AUTH $BruteForceTarget authenticated (expect 4624 + 4768, and 4672 if privileged)"
+        Write-Step "SUCCESS-AUTH $BruteForceTarget authenticated (expect 4624 + 4776, and 4672 if privileged)"
     }
     else {
         Write-Step "PROBLEM: $BruteForceTarget did NOT authenticate. Wrong LabUserPasswordPlainText?"
@@ -204,12 +205,13 @@ try {
     Write-Output ("Contrast success    : {0} ({1})" -f $contrastOk, $contrastUser)
     Write-Output ''
     Write-Output 'Expected in the Security log now, and in the workspace shortly:'
-    Write-Output '  4625 / 4771  failed logon / Kerberos pre-auth failed (0x18 = bad password)'
-    Write-Output '  4624 / 4768  successful logon / TGT issued'
+    Write-Output '  4625 / 4776  failed logon / NTLM credential validation'
+    Write-Output '  4624 / 4776  successful logon / NTLM credential validation'
     Write-Output ("  4672         special privileges, on {0} only" -f $BruteForceTarget)
+    Write-Output '  (No 4768/4771: a bind issued on the DC itself settles on NTLM. See the header.)'
     Write-Output ''
     Write-Output 'Local check on this DC (the log is a ring buffer, so check soon):'
-    Write-Output '  Get-WinEvent -FilterHashtable @{LogName=''Security''; Id=4625,4771,4624,4768,4672; StartTime=(Get-Date).AddMinutes(-15)} |'
+    Write-Output '  Get-WinEvent -FilterHashtable @{LogName=''Security''; Id=4625,4776,4624,4672; StartTime=(Get-Date).AddMinutes(-15)} |'
     Write-Output '    Group-Object Id | Select-Object Name, Count'
     Write-Output ''
     Write-Output ("Transcript          : {0}" -f $transcript)

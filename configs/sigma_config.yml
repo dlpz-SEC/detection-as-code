@@ -3,7 +3,11 @@
 # Field mappings and log source definitions for SIEM conversion.
 # This file standardizes how Sigma fields map to your SIEM's field names.
 #
-# Used by: sigma convert --config configs/sigma_config.yml
+# NOT WIRED IN. Nothing reads this file: CI converts with `--pipeline sysmon`
+# and passes no config. It is in the legacy sigmac backends:/fieldmappings:
+# format, not a pySigma processing pipeline, and wiring it in would rename
+# fields (Image -> process_path, ...) that the Tier-1 test samples rely on.
+# Kept for reference only.
 
 title: Enterprise Sigma Configuration
 order: 100  # Higher = higher priority in field resolution

@@ -9,12 +9,13 @@
 //   those field names directly, so they only run once this function projects the
 //   XML back into columns. KQL against the wrong table returns zero rows, no error.
 //
-// STATUS: schema-built, live-UNVERIFIED.
-//   Built to the documented Log Analytics Event schema, not yet confirmed against
-//   real rows from the lab (no VM is ingesting). The EventData quote style and the
-//   exact field presence MUST be validated at Phase 3 ("prove the data path",
-//   `Event | where Source == "Microsoft-Windows-Sysmon" | take 5`) before any
-//   analytics rule is switched on at Phase 4. See sentinel/README.md.
+// STATUS: verified against live rows on 2026-08-28.
+//   `Sysmon | summarize count() by EventID` returned EID 1 and EID 10 rows, with
+//   the fields extracted from the EventData XML into columns, and the deployed
+//   encoded-PowerShell rule matched its trigger through this function. The lab
+//   has since been torn down; re-verify after any redeploy with
+//   `Event | where Source == "Microsoft-Windows-Sysmon" | take 5`. Evidence:
+//   sentinel/README.md.
 //
 // DEPLOY as a workspace function with alias `Sysmon` (sentinel/rule_map.yml → parser).
 // Invoke downstream as:  Sysmon | where <predicate>

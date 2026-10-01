@@ -8,6 +8,10 @@
 #   high: Should have medium+ confidence (score >= 0.5)
 #   medium: Target for coverage expansion
 #   low: Nice to have
+#
+# NOT WIRED IN. No script reads this file: scripts/generate_coverage.py
+# hardcodes its weights and does not check these priorities. Kept as the
+# intended priority list for a future gap report.
 
 priority_techniques:
   critical:

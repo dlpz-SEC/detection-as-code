@@ -1,11 +1,12 @@
 <#
     Promote the lab VM to an Active Directory domain controller.
 
-    Runs once, via the CustomScriptExtension declared in vm.bicep, when
-    promoteToDomainController = true. It is embedded into that extension as
-    base64 (the same pattern sysmonconfig.xml uses) rather than downloaded, so
-    the VM needs no external script host and the promotion is version-controlled
-    alongside the template that runs it.
+    Runs once, via the PromoteToDomainController run command (a
+    virtualMachines/runCommands resource) declared in vm.bicep, when
+    promoteToDomainController = true. vm.bicep inlines this file with
+    loadTextContent() rather than downloading it, so the VM needs no external
+    script host and the promotion is version-controlled alongside the template
+    that runs it.
 
     WHY A DATA DISK. AD DS puts its database (NTDS.dit), its transaction logs
     and SYSVOL on this disk deliberately, and vm.bicep attaches it with
@@ -16,10 +17,12 @@
     that disk and points all three paths at it.
 
     WHY -NoRebootOnCompletion. Promotion always requires a reboot, and a reboot
-    kills the CustomScriptExtension mid-run, which Azure then reports as a
-    failed extension even though the promotion succeeded. So the promotion is
-    told not to reboot itself; the script schedules the restart AFTER it exits
-    cleanly, and the extension reports success. The domain is not usable until
+    kills the run command mid-run, which Azure then reports as a failed run
+    command even though the promotion succeeded - and vm.bicep sets
+    treatFailureAsDeploymentFailure, so the whole deployment would fail. So the
+    promotion is told not to reboot itself; the script schedules the restart
+    AFTER it exits cleanly, and the run command reports success. The domain is
+    not usable until
     that restart completes (roughly two to four minutes).
 
     DNS. Install-ADDSForest installs and configures the DNS Server role
@@ -33,14 +36,14 @@
     SCOPE. This promotes a NEW forest with a single domain controller. It is not
     a replica promotion and does not join an existing forest.
 
-    CREDENTIAL HANDLING. -DsrmPassword arrives from the extension's
-    protectedSettings, which Azure encrypts at rest and never returns from a GET
-    on the extension. It is not written to disk by this script and is not
+    CREDENTIAL HANDLING. -DsrmPassword arrives through the run command's
+    protectedParameters, which Azure encrypts and omits from a GET on the
+    resource. It is not written to disk by this script and is not
     echoed. It is still a lab credential in a non-routable domain - treat it as
     disposable and never reuse a real password here.
 
     IDEMPOTENCE. Safe to re-run. If the machine is already a domain controller
-    the script reports that and exits 0 rather than failing the extension.
+    the script reports that and exits 0 rather than failing the run command.
 #>
 
 [CmdletBinding()]
@@ -54,8 +57,8 @@ param(
     [Parameter(Mandatory = $true)]
     [string] $DsrmPassword,
 
-    # Minutes to wait before the post-promotion restart. The default gives the
-    # extension time to report success to Azure before the machine drops.
+    # Seconds to wait before the post-promotion restart. The default gives the
+    # run command time to report success to Azure before the machine drops.
     [int] $RestartDelaySeconds = 60
 )
 
@@ -150,7 +153,7 @@ try {
     Write-Step 'Promotion staged. Scheduling the restart that completes it.'
 
     # ------------------------------------------------------------------
-    # 4. Restart on a delay, so the extension reports success first.
+    # 4. Restart on a delay, so the run command reports success first.
     # ------------------------------------------------------------------
     Start-Process -FilePath 'shutdown.exe' `
         -ArgumentList "/r /t $RestartDelaySeconds /c ""AD DS promotion: completing"" /d p:2:4" `
@@ -165,7 +168,7 @@ catch {
     Write-Step "FAILED: $($_.Exception.Message)"
     Write-Step "Transcript: $transcript"
     Stop-Transcript | Out-Null
-    # Non-zero so the extension surfaces the failure rather than reporting a
+    # Non-zero so the run command surfaces the failure rather than reporting a
     # green deploy over a VM that never became a domain controller.
     exit 1
 }

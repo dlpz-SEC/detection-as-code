@@ -22,8 +22,9 @@ Each tier skips what it cannot test: Tier 1 skips samples with no offline
 ## What Tier 2 can and cannot verify (important)
 
 **✅ Works: syslog / JSON-decoded sources** (Linux, network, application logs).
-Proven end to end — the SSH brute-force detection below is verified against the
-live engine on every run.
+Proven end to end: the SSH brute-force detection below was verified against the
+live engine (last recorded run 2026-07-16). The CI job that would re-run it is
+inert until a runner is registered; see [CI](#ci).
 
 **❌ Does not work: Windows Sysmon / eventchannel.** This is a hard limitation
 of `logtest`, established empirically (7 `log_format` × `location` combinations
@@ -149,10 +150,14 @@ $LASTEXITCODE   # 0 pass / 1 detection failure / 2 infra
 
 ## CI
 
-The `Functional Tests (Wazuh)` job is `workflow_dispatch`-only and targets a
-`[self-hosted, wazuh-lab]` runner, with `DAC_WAZUH_API_*` as repo secrets. It
-never runs on push/PR, so it cannot block merges and no fork can reach the
-runner or its secrets. Tier 1 remains the always-on gate.
+The `Functional Tests (Wazuh)` job targets a `[self-hosted, wazuh-lab]` runner,
+with `DAC_WAZUH_API_*` as repo secrets, and its `if:` limits it to
+`workflow_dispatch`. That `if:` is not a trust boundary: on `pull_request`,
+GitHub evaluates the workflow from the PR head, so a fork PR could rewrite the
+guard and run on a registered runner. Secrets stay safe, because GitHub
+withholds them from fork PRs, but the runner host does not. The job is inert
+today only because no `wazuh-lab` runner is registered; read the security note
+in the workflow before registering one. Tier 1 remains the always-on gate.
 
 ## Out of scope
 
