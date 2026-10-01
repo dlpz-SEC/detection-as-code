@@ -397,8 +397,7 @@ jobs:
             --rules-dir rules/ \
             --test-results test-results.json \
             --output docs/COVERAGE.md \
-            --format markdown \
-            --include-heatmap
+            --format markdown
             
       - name: Generate ATT&CK Navigator layer
         run: |

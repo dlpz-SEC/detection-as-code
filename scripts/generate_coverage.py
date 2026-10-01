@@ -16,7 +16,7 @@ import json
 import re
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -31,10 +31,11 @@ CONFIDENCE_WEIGHTS = {
     None: 0.3  # Default for missing confidence
 }
 
-# Behavioral-test state weights. A rule the harness could not evaluate
-# ("untested" — e.g. a correlation rule converting to aggregation SPL) must
-# score BELOW a rule with a passing behavioral test, but above a rule whose
-# test actually failed. Scoring it as passed would inflate published coverage.
+# Behavioral-test state weights. A rule with no behavioral evidence
+# ("untested" — a correlation rule converting to aggregation SPL, a rule no
+# true-positive sample routes to, or no Tier-1 result at all) must score BELOW
+# a rule with a passing behavioral test, but above a rule whose test actually
+# failed. Scoring it as passed would inflate published coverage.
 TEST_STATE_WEIGHTS = {
     "passed": 1.0,
     "untested": 0.6,
@@ -86,10 +87,11 @@ class RuleCoverage:
     lifecycle: str
     confidence: Optional[str]
     level: str
-    # "passed" | "failed" | "untested". Tri-valued on purpose: a rule the
-    # behavioral harness SKIPPED (aggregation query it cannot evaluate) is not
-    # the same as one that passed, and must not claim full coverage weight.
+    # "passed" | "failed" | "untested". Tri-valued on purpose: a rule with no
+    # behavioral evidence is not the same as one that passed, and must not
+    # claim full coverage weight. untested_reason says which kind of absence.
     test_state: str
+    untested_reason: Optional[str] = None
     
     @property
     def coverage_score(self) -> float:
@@ -155,7 +157,7 @@ def parse_rule(filepath: Path, test_results: dict = None) -> Optional[RuleCovera
     techniques appear in coverage instead of silently vanishing.
     """
     try:
-        with open(filepath) as f:
+        with open(filepath, encoding="utf-8") as f:
             docs = [d for d in yaml.safe_load_all(f)
                     if isinstance(d, dict)]
     except Exception as e:
@@ -186,24 +188,15 @@ def parse_rule(filepath: Path, test_results: dict = None) -> Optional[RuleCovera
         
         if re.match(r'^t\d{4}(\.\d{3})?$', value):
             techniques.append(value.upper())  # Normalize to uppercase
-        elif value in TACTIC_ORDER:
-            tactics.append(value)
-    
-    # Check test results. The harness emits an explicit skip list for queries
-    # it cannot evaluate (aggregation SPL from correlation rules); read that
-    # rather than letting a missing entry silently default to "passed".
-    test_state = "passed"
-    if test_results:
-        rule_name = filepath.stem
-        skipped = set(test_results.get("summary", {}).get("skipped_aggregation", []))
-        results = test_results.get("results", {})
-        if rule_name in skipped:
-            test_state = "untested"
-        elif rule_name in results:
-            test_state = "passed" if results[rule_name].get("passed") else "failed"
-        # else: no sample routed to this rule — keep the benign "passed"
-        # default rather than penalising a rule for having no test data.
-    
+        else:
+            # Sigma spec form is hyphenated (attack.credential-access); older
+            # rules use underscores. Read both, key internally on underscores.
+            tactic = value.replace("-", "_")
+            if tactic in TACTIC_ORDER and tactic not in tactics:
+                tactics.append(tactic)
+
+    test_state, untested_reason = resolve_test_state(filepath.stem, test_results)
+
     return RuleCoverage(
         filepath=str(filepath),
         title=rule.get("title", "Unknown"),
@@ -212,8 +205,46 @@ def parse_rule(filepath: Path, test_results: dict = None) -> Optional[RuleCovera
         lifecycle=custom.get("lifecycle", "draft"),
         confidence=custom.get("confidence"),
         level=rule.get("level", "medium"),
-        test_state=test_state
+        test_state=test_state,
+        untested_reason=untested_reason,
     )
+
+
+def _sensitivity_tested(entry: dict) -> bool:
+    """Whether any true-positive sample was actually evaluated for a rule.
+
+    test_detections.py emits `sensitivity_tested` explicitly. Older result
+    files only carry the "detected/total" string, so fall back to parsing it.
+    An entry that states neither is treated as untested: absence of evidence
+    is not evidence.
+    """
+    if "sensitivity_tested" in entry:
+        return bool(entry["sensitivity_tested"])
+    match = re.match(r"^\s*\d+\s*/\s*(\d+)\s*$", str(entry.get("true_positives", "")))
+    return bool(match) and int(match.group(1)) > 0
+
+
+def resolve_test_state(rule_name: str, test_results: Optional[dict]) -> tuple[str, Optional[str]]:
+    """Map a rule's Tier-1 result to (test_state, untested_reason).
+
+    The harness passes a rule that no true-positive sample routes to (0/0),
+    because its CI gate only asks "no false positives, and sensitivity OK
+    where testable". That is a gate, not evidence: coverage must score such a
+    rule as untested, or a rule nobody exercised claims full weight.
+    """
+    if test_results is None:
+        return "untested", "no test results supplied"
+    skipped = set(test_results.get("summary", {}).get("skipped_aggregation", []))
+    if rule_name in skipped:
+        return "untested", "aggregation query"
+    entry = test_results.get("results", {}).get(rule_name)
+    if entry is None:
+        return "untested", "no Tier-1 result"
+    if not entry.get("passed"):
+        return "failed", None
+    if not _sensitivity_tested(entry):
+        return "untested", "no true-positive sample"
+    return "passed", None
 
 
 def load_technique_names() -> dict:
@@ -250,41 +281,105 @@ def load_technique_names() -> dict:
         "T1027": "Obfuscated Files or Information",
         "T1486": "Data Encrypted for Impact",
         "T1490": "Inhibit System Recovery",
+        "T1078": "Valid Accounts",
+        "T1078.002": "Domain Accounts",
+        "T1110": "Brute Force",
+        "T1110.001": "Password Guessing",
+        "T1110.003": "Password Spraying",
         # Add more as needed
     }
+
+
+# MITRE tactics per parent technique (sub-techniques inherit their parent's).
+# Sigma tags carry tactics at RULE level, with no link to a specific technique,
+# so a rule tagged execution + defense-evasion + T1059 + T1027 cannot say which
+# tactic goes with which technique. This table supplies the missing link.
+TECHNIQUE_TACTICS = {
+    "T1003": ["credential_access"],
+    "T1018": ["discovery"],
+    "T1027": ["defense_evasion"],
+    "T1053": ["execution", "persistence", "privilege_escalation"],
+    "T1055": ["defense_evasion", "privilege_escalation"],
+    "T1059": ["execution"],
+    "T1069": ["discovery"],
+    "T1078": ["initial_access", "persistence", "privilege_escalation", "defense_evasion"],
+    "T1082": ["discovery"],
+    "T1087": ["discovery"],
+    "T1105": ["command_and_control"],
+    "T1110": ["credential_access"],
+    "T1140": ["defense_evasion"],
+    "T1486": ["impact"],
+    "T1490": ["impact"],
+    "T1547": ["persistence", "privilege_escalation"],
+}
+
+
+def resolve_tactics(technique_id: str, rule_tactics: set[str]) -> list[str]:
+    """Tactics a technique is reported under, in ATT&CK matrix order.
+
+    Known technique: the MITRE tactics its covering rules actually claim, or
+    all of its MITRE tactics if they claim none of them. Unknown technique:
+    the union of tactics its covering rules claim.
+    """
+    known = TECHNIQUE_TACTICS.get(technique_id.split(".")[0])
+    if known is None:
+        chosen = set(rule_tactics)
+    else:
+        chosen = {t for t in known if t in rule_tactics} or set(known)
+    return [t for t in TACTIC_ORDER if t in chosen]
 
 
 def build_coverage_map(rules_dir: Path, test_results: dict = None) -> dict[str, TechniqueCoverage]:
     """Build a map of technique ID to coverage information."""
     technique_names = load_technique_names()
     coverage_map: dict[str, TechniqueCoverage] = {}
-    
+    claimed_tactics: dict[str, set[str]] = defaultdict(set)
+
     # Parse all rules
-    for filepath in rules_dir.rglob("*.yml"):
+    for filepath in sorted(rules_dir.rglob("*.yml")):
         rule_coverage = parse_rule(filepath, test_results)
         if not rule_coverage:
             continue
-        
+
         # Add rule to each technique it covers
         for tech_id in rule_coverage.techniques:
             if tech_id not in coverage_map:
                 coverage_map[tech_id] = TechniqueCoverage(
                     technique_id=tech_id,
                     technique_name=technique_names.get(tech_id, "Unknown"),
-                    tactics=rule_coverage.tactics,
+                    tactics=[],
                     rules=[]
                 )
             coverage_map[tech_id].rules.append(rule_coverage)
-    
+            claimed_tactics[tech_id].update(rule_coverage.tactics)
+
+    # Tactics are resolved once every covering rule is known, so the result
+    # does not depend on which rule file happened to be parsed first.
+    for tech_id, tech in coverage_map.items():
+        tech.tactics = resolve_tactics(tech_id, claimed_tactics[tech_id])
+
     return coverage_map
 
 
-def generate_markdown_report(coverage_map: dict[str, TechniqueCoverage]) -> str:
+def count_rule_files(coverage_map: dict[str, TechniqueCoverage]) -> int:
+    """Distinct rule files behind the map (a rule tagging N techniques counts once)."""
+    return len({r.filepath for t in coverage_map.values() for r in t.rules})
+
+
+def generate_markdown_report(
+    coverage_map: dict[str, TechniqueCoverage], test_results_supplied: bool = True
+) -> str:
     """Generate a Markdown coverage report."""
+    behavioral = (
+        "included" if test_results_supplied
+        else "not supplied, so every rule is scored as untested"
+    )
     lines = [
         "# MITRE ATT&CK Coverage Report",
         "",
-        f"*Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}*",
+        f"*Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}*",
+        "",
+        f"*Tier-1 behavioral test results: {behavioral}.*",
         "",
         "## Executive Summary",
         "",
@@ -295,7 +390,7 @@ def generate_markdown_report(coverage_map: dict[str, TechniqueCoverage]) -> str:
     high_conf = sum(1 for t in coverage_map.values() if t.confidence_level == "high")
     med_conf = sum(1 for t in coverage_map.values() if t.confidence_level == "medium")
     low_conf = sum(1 for t in coverage_map.values() if t.confidence_level == "low")
-    total_rules = sum(len(t.rules) for t in coverage_map.values())
+    rule_files = count_rule_files(coverage_map)
     
     lines.extend([
         f"| Metric | Value |",
@@ -304,7 +399,7 @@ def generate_markdown_report(coverage_map: dict[str, TechniqueCoverage]) -> str:
         f"| High Confidence | {high_conf} |",
         f"| Medium Confidence | {med_conf} |",
         f"| Low Confidence | {low_conf} |",
-        f"| Total Rules | {total_rules} |",
+        f"| Rule files | {rule_files} |",
         "",
         "## Coverage by Tactic",
         "",
@@ -365,8 +460,10 @@ def generate_markdown_report(coverage_map: dict[str, TechniqueCoverage]) -> str:
                 issues.append("Low confidence")
             if any(r.test_state == "failed" for r in tech.rules):
                 issues.append("Test failures")
-            if any(r.test_state == "untested" for r in tech.rules):
-                issues.append("Not behaviorally tested (aggregation query)")
+            reasons = sorted({r.untested_reason or "untested"
+                              for r in tech.rules if r.test_state == "untested"})
+            if reasons:
+                issues.append(f"Not behaviorally tested ({'; '.join(reasons)})")
             lines.append(f"| {tech.technique_id} | {', '.join(issues)} |")
     else:
         lines.append("*No significant coverage gaps identified.*")
@@ -414,7 +511,7 @@ def generate_navigator_layer(coverage_map: dict[str, TechniqueCoverage]) -> dict
         "name": "Detection Coverage",
         "version": "4.5",
         "domain": "enterprise-attack",
-        "description": f"Detection coverage as of {datetime.utcnow().strftime('%Y-%m-%d')}",
+        "description": f"Detection coverage as of {datetime.now(timezone.utc).strftime('%Y-%m-%d')}",
         "filters": {
             "platforms": ["Windows", "Linux", "macOS"]
         },
@@ -453,14 +550,13 @@ def main():
     parser.add_argument("--test-results", help="JSON file with test results")
     parser.add_argument("--output", required=True, help="Output file path")
     parser.add_argument("--format", choices=["markdown", "navigator"], default="markdown")
-    parser.add_argument("--include-heatmap", action="store_true", help="Include ASCII heatmap in markdown")
     args = parser.parse_args()
     
     # Load test results if provided
     test_results = None
     if args.test_results:
         try:
-            with open(args.test_results) as f:
+            with open(args.test_results, encoding="utf-8") as f:
                 test_results = json.load(f)
         except Exception as e:
             print(f"Warning: Could not load test results: {e}")
@@ -469,19 +565,20 @@ def main():
     rules_dir = Path(args.rules_dir)
     coverage_map = build_coverage_map(rules_dir, test_results)
     
-    print(f"Analyzed {sum(len(t.rules) for t in coverage_map.values())} rules")
+    print(f"Analyzed {count_rule_files(coverage_map)} rule files")
     print(f"Covering {len(coverage_map)} techniques")
-    
-    # Generate output
+
+    # Generate output. Explicit UTF-8: the report carries emoji, which the
+    # Windows default code page (cp1252) cannot encode.
     if args.format == "markdown":
-        content = generate_markdown_report(coverage_map)
-        with open(args.output, "w") as f:
+        content = generate_markdown_report(coverage_map, test_results is not None)
+        with open(args.output, "w", encoding="utf-8") as f:
             f.write(content)
         print(f"Markdown report written to: {args.output}")
     
     elif args.format == "navigator":
         layer = generate_navigator_layer(coverage_map)
-        with open(args.output, "w") as f:
+        with open(args.output, "w", encoding="utf-8") as f:
             json.dump(layer, f, indent=2)
         print(f"Navigator layer written to: {args.output}")
 

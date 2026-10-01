@@ -620,6 +620,11 @@ def main():
             "sensitivity": result.sensitivity,
             "specificity": result.specificity,
             "true_positives": f"{result.true_positives_detected}/{result.true_positives_total}",
+            # `passed` is the CI gate (no FPs; sensitivity OK where testable),
+            # so a rule no true-positive sample routes to still passes. This
+            # flag tells coverage the difference between "passed" and "nothing
+            # was exercised" - see generate_coverage.resolve_test_state.
+            "sensitivity_tested": result.true_positives_total > 0,
             "false_positives": result.false_positives,
             "errors": result.errors,
             "notes": result.notes,
