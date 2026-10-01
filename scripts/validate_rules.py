@@ -247,12 +247,15 @@ def validate_mitre_tags(rule: dict, filepath: str, lifecycle: Lifecycle) -> list
     technique_tags = [t for t in attack_tags if t.startswith("attack.t")]
     subtechnique_tags = [t for t in attack_tags if ".t" in t and "." in t.split("attack.t")[-1]]
     
-    # Valid MITRE tactics
+    # Valid MITRE tactics, in the Sigma specification's hyphenated form and
+    # ATT&CK v19.1's names - the release scripts/sigma_lint.py pins for
+    # pySigma's attacktag validator, which CI enforces with --fail-on-issues.
     valid_tactics = [
-        "attack.reconnaissance", "attack.resource_development", "attack.initial_access",
-        "attack.execution", "attack.persistence", "attack.privilege_escalation",
-        "attack.defense_evasion", "attack.credential_access", "attack.discovery",
-        "attack.lateral_movement", "attack.collection", "attack.command_and_control",
+        "attack.reconnaissance", "attack.resource-development", "attack.initial-access",
+        "attack.execution", "attack.persistence", "attack.privilege-escalation",
+        "attack.stealth", "attack.defense-impairment",
+        "attack.credential-access", "attack.discovery",
+        "attack.lateral-movement", "attack.collection", "attack.command-and-control",
         "attack.exfiltration", "attack.impact"
     ]
     
@@ -277,11 +280,15 @@ def validate_mitre_tags(rule: dict, filepath: str, lifecycle: Lifecycle) -> list
     # Validate tactic names
     for tag in tactic_tags:
         if tag not in valid_tactics:
+            # Underscore form -> spec form; retired name -> its replacement.
+            spec_form = tag.replace("_", "-")
+            spec_form = {"attack.defense-evasion": "attack.stealth"}.get(spec_form, spec_form)
+            hint = f" (use {spec_form})" if spec_form in valid_tactics else ""
             issues.append(ValidationIssue(
                 file=filepath,
                 severity=Severity.WARNING,
                 code="UNKNOWN_TACTIC",
-                message=f"Unknown tactic tag: {tag}"
+                message=f"Unknown tactic tag: {tag}{hint}"
             ))
     
     # Validate technique ID format (attack.t1XXX or attack.t1XXX.XXX)

@@ -27,7 +27,7 @@ Ready for testing in non-production environments.
 title: Short descriptive title
 description: Multi-line description explaining what this detects and why
 tags:
-    - attack.tactic_name
+    - attack.tactic-name
     - attack.tXXXX
 level: medium
 logsource:
@@ -61,7 +61,7 @@ author: Your Name / Team Name
 date: YYYY/MM/DD
 modified: YYYY/MM/DD
 tags:
-    - attack.tactic_name
+    - attack.tactic-name
     - attack.tXXXX
     - attack.tXXXX.XXX  # Subtechnique if applicable
 logsource:
@@ -167,17 +167,21 @@ detection:
 ## MITRE ATT&CK Tagging
 
 ### Required Tags
-- At least one tactic tag: `attack.credential_access`
+- At least one tactic tag: `attack.credential-access`
 - Technique ID for experimental/production: `attack.t1003`
 - Subtechnique if applicable: `attack.t1003.001`
 
 ### Tag Format
 ```yaml
 tags:
-    - attack.credential_access    # Tactic (lowercase with underscores)
+    - attack.credential-access    # Tactic (lowercase, hyphenated: Sigma spec)
     - attack.t1003               # Technique (lowercase t + 4 digits)
     - attack.t1003.001           # Subtechnique (technique + .XXX)
 ```
+
+Tactic names follow ATT&CK v19.1, the release `scripts/sigma_lint.py` pins for CI.
+v19 renamed Defense Evasion to `attack.stealth` and added `attack.defense-impairment`,
+so `attack.defense-evasion` now fails lint.
 
 ## Testing Requirements
 

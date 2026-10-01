@@ -18,7 +18,7 @@ author: Detection Engineering Team
 date: 2024/01/15
 modified: 2024/03/20
 tags:
-    - attack.credential_access
+    - attack.credential-access
     - attack.t1003
     - attack.t1003.001
 logsource:

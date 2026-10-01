@@ -130,26 +130,29 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
-          cache-dependency-path: 'scripts/requirements.txt'
-          
+          cache-dependency-path: 'scripts/requirements-sigma.txt'
+
       - name: Install sigma-cli
-        run: pip install sigma-cli
-        
+        run: pip install -r scripts/requirements-sigma.txt
+
       - name: Lint all rules
         run: |
-          # sigma check validates:
-          # - Correct logsource configuration
-          # - Valid detection logic
-          # - Field name validity
-          # 
-          # --fail-on-error ensures CI fails on any rule issues
-          # --validation-config can specify additional checks
-          
+          # sigma check runs pySigma's validators: ATT&CK tag validity,
+          # dangling conditions and detections, field names against the
+          # logsource, duplicate IDs and titles, and more.
+          #
+          # --fail-on-issues makes validation ISSUES fail the job. Without it
+          # sigma check defaults to pass-on-issues and fails only on parse
+          # errors, which is how 9 invalid tactic tags once passed CI.
+          #
+          # sigma_lint.py pins the ATT&CK release the tag validator checks
+          # against. Unpinned, pySigma fetches whatever MITRE's master branch
+          # holds that day, so a new ATT&CK release could fail this job with
+          # no change in the repo. The toolchain itself is bounded in
+          # requirements-sigma.txt for the same reason.
+
           echo "=== Linting Rules ==="
-          find rules/ -name "*.yml" -type f | while read rule; do
-            echo "Checking: $rule"
-            sigma check "$rule" || exit 1
-          done
+          python scripts/sigma_lint.py rules/
           
       - name: Check for required MITRE tags
         run: |
@@ -223,14 +226,9 @@ jobs:
           
       - name: Install sigma-cli with backends
         run: |
-          pip install sigma-cli
-          # Install backend-specific plugins
-          pip install pysigma-backend-splunk
-          # pysigma-backend-microsoft365defender provides the `kusto` target too
-          pip install pysigma-backend-microsoft365defender
-          # Install pipeline plugins for field mappings
-          pip install pysigma-pipeline-sysmon
-          pip install pysigma-pipeline-windows
+          # sigma-cli, the splunk and kusto backends and the sysmon pipeline,
+          # each bounded to its current major (see the file for why)
+          pip install -r scripts/requirements-sigma.txt
           # PyYAML for the Sentinel wrap step (convert_sentinel.py)
           pip install -r scripts/requirements.txt
           

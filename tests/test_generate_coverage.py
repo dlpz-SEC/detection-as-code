@@ -99,8 +99,8 @@ def test_untested_production_high_rule_scores_point_six():
 # -- tactics ------------------------------------------------------------------
 
 def test_resolve_tactics_keeps_only_tactics_mitre_assigns():
-    rule_tactics = {"execution", "defense_evasion"}
-    assert resolve_tactics("T1027", rule_tactics) == ["defense_evasion"]
+    rule_tactics = {"execution", "stealth"}
+    assert resolve_tactics("T1027", rule_tactics) == ["stealth"]
     assert resolve_tactics("T1059.001", rule_tactics) == ["execution"]
 
 
@@ -119,16 +119,24 @@ def test_resolve_tactics_unknown_technique_uses_rule_tactics():
 
 
 def test_multi_technique_rule_does_not_smear_tactics(tmp_path):
-    """T1027 must not appear under Execution, nor T1059 under Defense Evasion."""
+    """T1027 must not appear under Execution, nor T1059 under Stealth."""
     rules_dir = tmp_path / "rules"
     write_rule(rules_dir, "windows/execution/ps.yml", make_rule([
         "attack.execution", "attack.t1059", "attack.t1059.001",
-        "attack.defense-evasion", "attack.t1027",
+        "attack.stealth", "attack.t1027",
     ]))
     cmap = build_coverage_map(rules_dir, None)
-    assert cmap["T1027"].tactics == ["defense_evasion"]
+    assert cmap["T1027"].tactics == ["stealth"]
     assert cmap["T1059"].tactics == ["execution"]
     assert cmap["T1059.001"].tactics == ["execution"]
+
+
+@pytest.mark.parametrize("legacy_tag", ["attack.defense-evasion", "attack.defense_evasion"])
+def test_retired_defense_evasion_tag_counts_as_stealth(tmp_path, legacy_tag):
+    """ATT&CK v19 renamed TA0005 to Stealth; a rule tagged the old way keeps its tactic."""
+    rules_dir = tmp_path / "rules"
+    write_rule(rules_dir, "a/r.yml", make_rule([legacy_tag, "attack.t1027"]))
+    assert build_coverage_map(rules_dir, None)["T1027"].tactics == ["stealth"]
 
 
 def test_hyphen_and_underscore_tactic_tags_are_equivalent(tmp_path):

@@ -23,9 +23,6 @@ pytest>=8.0,<10.0
 requests>=2.32.4,<3.0
 python-dotenv>=1.0,<2.0
 
-# Note: sigma-cli and its backends are installed via pip directly in CI:
-#   pip install sigma-cli
-#   pip install pysigma-backend-splunk
-#   pip install pysigma-backend-microsoft365defender
-#
-# This separation allows for easier backend management and version pinning.
+# Note: sigma-cli and its backends live in requirements-sigma.txt, installed
+# separately by the CI lint and conversion jobs:
+#   pip install -r scripts/requirements-sigma.txt

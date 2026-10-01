@@ -1,0 +1,23 @@
+# Sigma toolchain for the CI lint and conversion jobs.
+#
+# Bounded to the current major on purpose. CI runs `sigma check
+# --fail-on-issues`, so any validator a new upstream release adds becomes a
+# build failure; a major bump should be a deliberate change made here, not
+# something CI discovers. Floors are the versions this pipeline was verified
+# with (2026-10-01). All of them support Python 3.11, the CI interpreter.
+#
+# The ATT&CK data the tag validator checks against is pinned separately, in
+# scripts/sigma_lint.py: pySigma downloads it at runtime, so bounding pySigma
+# alone does not freeze it.
+
+sigma-cli>=2.0,<3.0
+pySigma>=1.1,<2.0
+
+# Backends: `sigma convert --target splunk` and `--target kusto`.
+# microsoft365defender pulls in the kusto backend, which provides `kusto`.
+pysigma-backend-splunk>=2.0,<3.0
+pySigma-backend-microsoft365defender>=0.3,<0.4
+pySigma-backend-kusto>=1.0,<2.0
+
+# Pipeline: CI converts every rule with `--pipeline sysmon`.
+pysigma-pipeline-sysmon>=2.0,<3.0

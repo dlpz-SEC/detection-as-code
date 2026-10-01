@@ -39,6 +39,21 @@ def test_tactics_from_tags_excludes_techniques():
     assert tactics_from_tags(tags) == ["Execution", "DefenseEvasion"]
 
 
+def test_tactics_from_tags_reads_sigma_spec_hyphen_form():
+    """Rules use the spec form (attack.credential-access). A lookup keyed only
+    on underscores would silently deploy every rule with tactics: []."""
+    hyphen = ["attack.credential-access", "attack.t1003", "attack.defense-evasion"]
+    underscore = ["attack.credential_access", "attack.t1003", "attack.defense_evasion"]
+    assert tactics_from_tags(hyphen) == ["CredentialAccess", "DefenseEvasion"]
+    assert tactics_from_tags(hyphen) == tactics_from_tags(underscore)
+
+
+def test_tactics_from_tags_maps_attack_v19_tactics():
+    """Stealth (renamed TA0005) and Defense Impairment have no Sentinel enum
+    value of their own; both land on DefenseEvasion, once."""
+    assert tactics_from_tags(["attack.stealth", "attack.defense-impairment"]) == ["DefenseEvasion"]
+
+
 def test_parent_techniques_strips_subs_and_dedupes():
     assert parent_techniques(["T1059", "T1059.001", "T1027"]) == ["T1027", "T1059"]
     assert parent_techniques([]) == []

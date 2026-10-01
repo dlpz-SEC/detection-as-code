@@ -47,12 +47,19 @@ _SEVERITY = {
 }
 
 # Sigma tactic tag -> Sentinel `tactics` enum value (PascalCase, no separators).
+# Keyed on the underscore form; tactics_from_tags folds the Sigma spec's
+# hyphenated form (attack.credential-access) onto it.
 _TACTIC = {
     "initial_access": "InitialAccess",
     "execution": "Execution",
     "persistence": "Persistence",
     "privilege_escalation": "PrivilegeEscalation",
     "defense_evasion": "DefenseEvasion",
+    # ATT&CK v19 renamed TA0005 Defense Evasion to Stealth and split Defense
+    # Impairment (TA0112) out of it. Sentinel's tactic enum predates both, so
+    # each maps to the tactic it came from.
+    "stealth": "DefenseEvasion",
+    "defense_impairment": "DefenseEvasion",
     "credential_access": "CredentialAccess",
     "discovery": "Discovery",
     "lateral_movement": "LateralMovement",
@@ -84,7 +91,7 @@ def tactics_from_tags(tags: list) -> list[str]:
         tag = str(tag)
         if not tag.startswith("attack.") or _TECHNIQUE_TAG_RE.match(tag):
             continue
-        mapped = _TACTIC.get(tag[len("attack."):])
+        mapped = _TACTIC.get(tag[len("attack."):].replace("-", "_"))
         if mapped and mapped not in tactics:
             tactics.append(mapped)
     return tactics

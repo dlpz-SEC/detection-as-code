@@ -50,11 +50,13 @@ LIFECYCLE_WEIGHTS = {
     "deprecated": 0.0
 }
 
-# MITRE ATT&CK tactic ordering
+# MITRE ATT&CK tactic ordering (enterprise matrix, ATT&CK v19.1 - the release
+# scripts/sigma_lint.py pins). v19 renamed TA0005 Defense Evasion to Stealth
+# and added TA0112 Defense Impairment beside it.
 TACTIC_ORDER = [
     "reconnaissance", "resource_development", "initial_access",
     "execution", "persistence", "privilege_escalation",
-    "defense_evasion", "credential_access", "discovery",
+    "stealth", "defense_impairment", "credential_access", "discovery",
     "lateral_movement", "collection", "command_and_control",
     "exfiltration", "impact"
 ]
@@ -66,7 +68,8 @@ TACTIC_NAMES = {
     "execution": "Execution",
     "persistence": "Persistence",
     "privilege_escalation": "Privilege Escalation",
-    "defense_evasion": "Defense Evasion",
+    "stealth": "Stealth",
+    "defense_impairment": "Defense Impairment",
     "credential_access": "Credential Access",
     "discovery": "Discovery",
     "lateral_movement": "Lateral Movement",
@@ -75,6 +78,10 @@ TACTIC_NAMES = {
     "exfiltration": "Exfiltration",
     "impact": "Impact"
 }
+
+# Retired tactic names and what replaced them, so rules tagged the old way
+# still count. TA0005 kept its ID when v19 renamed it.
+TACTIC_ALIASES = {"defense_evasion": "stealth"}
 
 
 @dataclass
@@ -192,6 +199,7 @@ def parse_rule(filepath: Path, test_results: dict = None) -> Optional[RuleCovera
             # Sigma spec form is hyphenated (attack.credential-access); older
             # rules use underscores. Read both, key internally on underscores.
             tactic = value.replace("-", "_")
+            tactic = TACTIC_ALIASES.get(tactic, tactic)
             if tactic in TACTIC_ORDER and tactic not in tactics:
                 tactics.append(tactic)
 
@@ -290,24 +298,25 @@ def load_technique_names() -> dict:
     }
 
 
-# MITRE tactics per parent technique (sub-techniques inherit their parent's).
+# MITRE tactics per parent technique, as of ATT&CK v19.1 (sub-techniques
+# inherit their parent's).
 # Sigma tags carry tactics at RULE level, with no link to a specific technique,
 # so a rule tagged execution + defense-evasion + T1059 + T1027 cannot say which
 # tactic goes with which technique. This table supplies the missing link.
 TECHNIQUE_TACTICS = {
     "T1003": ["credential_access"],
     "T1018": ["discovery"],
-    "T1027": ["defense_evasion"],
+    "T1027": ["stealth"],
     "T1053": ["execution", "persistence", "privilege_escalation"],
-    "T1055": ["defense_evasion", "privilege_escalation"],
+    "T1055": ["stealth", "privilege_escalation"],
     "T1059": ["execution"],
     "T1069": ["discovery"],
-    "T1078": ["initial_access", "persistence", "privilege_escalation", "defense_evasion"],
+    "T1078": ["initial_access", "persistence", "privilege_escalation", "stealth"],
     "T1082": ["discovery"],
     "T1087": ["discovery"],
     "T1105": ["command_and_control"],
     "T1110": ["credential_access"],
-    "T1140": ["defense_evasion"],
+    "T1140": ["stealth"],
     "T1486": ["impact"],
     "T1490": ["impact"],
     "T1547": ["persistence", "privilege_escalation"],

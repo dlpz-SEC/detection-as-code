@@ -24,7 +24,7 @@ references:
 author: dlpz-SEC
 date: 2026/07/13
 tags:
-    - attack.credential_access
+    - attack.credential-access
     - attack.t1110
     - attack.t1110.001
 logsource:
@@ -76,6 +76,6 @@ correlation:
     condition:
         gte: 5
 tags:
-    - attack.credential_access
+    - attack.credential-access
     - attack.t1110
     - attack.t1110.001
