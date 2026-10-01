@@ -2,7 +2,7 @@
   "name": "Detection Coverage",
   "version": "4.5",
   "domain": "enterprise-attack",
-  "description": "Detection coverage as of 2026-08-28",
+  "description": "Detection coverage as of 2026-10-01",
   "filters": {
     "platforms": [
       "Windows",
@@ -20,9 +20,9 @@
   "techniques": [
     {
       "techniqueID": "T1110",
-      "score": 100,
-      "color": "#2ecc71",
-      "comment": "Rules: 4, Confidence: high",
+      "score": 69,
+      "color": "#f1c40f",
+      "comment": "Rules: 4, Confidence: medium",
       "enabled": true,
       "metadata": [
         {
@@ -31,15 +31,15 @@
         },
         {
           "name": "confidence",
-          "value": "high"
+          "value": "medium"
         }
       ]
     },
     {
       "techniqueID": "T1110.001",
-      "score": 100,
-      "color": "#2ecc71",
-      "comment": "Rules: 2, Confidence: high",
+      "score": 64,
+      "color": "#f1c40f",
+      "comment": "Rules: 2, Confidence: medium",
       "enabled": true,
       "metadata": [
         {
@@ -48,13 +48,13 @@
         },
         {
           "name": "confidence",
-          "value": "high"
+          "value": "medium"
         }
       ]
     },
     {
       "techniqueID": "T1110.003",
-      "score": 45,
+      "score": 28,
       "color": "#e67e22",
       "comment": "Rules: 2, Confidence: low",
       "enabled": true,
@@ -66,40 +66,6 @@
         {
           "name": "confidence",
           "value": "low"
-        }
-      ]
-    },
-    {
-      "techniqueID": "T1078",
-      "score": 70,
-      "color": "#f1c40f",
-      "comment": "Rules: 1, Confidence: medium",
-      "enabled": true,
-      "metadata": [
-        {
-          "name": "rule_count",
-          "value": "1"
-        },
-        {
-          "name": "confidence",
-          "value": "medium"
-        }
-      ]
-    },
-    {
-      "techniqueID": "T1078.002",
-      "score": 70,
-      "color": "#f1c40f",
-      "comment": "Rules: 1, Confidence: medium",
-      "enabled": true,
-      "metadata": [
-        {
-          "name": "rule_count",
-          "value": "1"
-        },
-        {
-          "name": "confidence",
-          "value": "medium"
         }
       ]
     },
@@ -174,6 +140,40 @@
     {
       "techniqueID": "T1027",
       "score": 60,
+      "color": "#f1c40f",
+      "comment": "Rules: 1, Confidence: medium",
+      "enabled": true,
+      "metadata": [
+        {
+          "name": "rule_count",
+          "value": "1"
+        },
+        {
+          "name": "confidence",
+          "value": "medium"
+        }
+      ]
+    },
+    {
+      "techniqueID": "T1078",
+      "score": 70,
+      "color": "#f1c40f",
+      "comment": "Rules: 1, Confidence: medium",
+      "enabled": true,
+      "metadata": [
+        {
+          "name": "rule_count",
+          "value": "1"
+        },
+        {
+          "name": "confidence",
+          "value": "medium"
+        }
+      ]
+    },
+    {
+      "techniqueID": "T1078.002",
+      "score": 70,
       "color": "#f1c40f",
       "comment": "Rules: 1, Confidence: medium",
       "enabled": true,
