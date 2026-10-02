@@ -94,8 +94,8 @@ custom:
 
 > **Feeds the ADTE manifest.** For production rules, `id`, `title`, `tags`,
 > `custom.confidence`, `custom.false_positive_rate`, and `custom.tuning_notes`
-> are exported to `docs/rule_manifest.json` and consumed by ADTE. `id` is the
-> join key, so it must be a unique UUID. See
+> are exported to `docs/rule_manifest.json` for ADTE, which does not load it
+> yet. `id` is the join key, so it must be a unique UUID. See
 > [`rule_manifest_schema.md`](rule_manifest_schema.md) for the full contract.
 
 ## Naming Conventions
