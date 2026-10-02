@@ -1,6 +1,6 @@
 # MITRE ATT&CK Coverage Report
 
-*Generated: 2026-10-01 10:01 UTC*
+*Generated: 2026-10-02 02:57 UTC*
 
 *Tier-1 behavioral test results: included.*
 
