@@ -23,14 +23,17 @@
          other six do not. A detection that cannot tell an admin logon from a
          helpdesk logon is not a detection, it is a counter.
 
-      3. Kerberoasting becomes DETECTABLE. Section 4 registers a Service
-         Principal Name on a normal user account. That single attribute is what
-         makes the account appear in an attacker's `setspn -T <domain> -Q */*`
-         or GetUserSPNs sweep, and what makes a service-ticket request against
-         it show up as 4769. configs/coverage_config.yml lists T1558.003
+      3. Kerberoasting becomes DETECTABLE IN PRINCIPLE. Section 4 registers a
+         Service Principal Name on a normal user account. That single attribute
+         is what makes the account appear in an attacker's
+         `setspn -T <domain> -Q */*` or GetUserSPNs sweep, and what makes a
+         service-ticket request against it show up as 4769 in the DC's local
+         Security log. configs/coverage_config.yml lists T1558.003
          (Kerberoasting) as a CRITICAL priority technique with no rule in
          rules/ covering it. This script creates the object that a T1558.003
-         rule would have nothing to fire on otherwise. It is the single most
+         rule would have nothing to fire on otherwise. Detection in Sentinel
+         still needs two more things: 4769 added to the DCR, which excludes it
+         today, and the T1558.003 rule itself. It is the single most
          portfolio-relevant thing in this file.
 
     EVENT IDs THIS CAUSES THE DC TO EMIT. Two distinct groups, and the
@@ -51,8 +54,9 @@
                  domain-local/built-in form and this script creates none)
           4662  operation performed on a directory object (SACL-gated, see below)
 
-    (b) Emitted FROM NOW ON, because Section 5 turns the subcategories on. These
-        are the events the lab actually exists to collect:
+    (b) Emitted FROM NOW ON, because Section 5 turns the subcategories on. Of
+        these, the DCR ingests only 4624, 4625, 4672, 4768 and 4771 (see COST
+        below); the rest, 4769 included, stay in the local Security log:
           4624  successful logon
           4625  failed logon
           4648  logon using explicit credentials
@@ -74,9 +78,11 @@
     WHAT THE CORPUS ACTUALLY CONSUMES TODAY. Verified against rules/, not
     assumed: 4625 feeds both credential-access correlations
     (bruteforce_failures_then_success, password_spray_single_source) and 4624 is
-    collected as investigation context. Every other ID in the list above is
-    emitted but has no consuming rule yet. That is deliberate: emitting is free,
-    ingesting is not.
+    collected as investigation context. Every other ID in the lists above has
+    no consuming rule yet. Some are still ingested on purpose (4672, 4728, 4768,
+    4771; dcr.bicep gives each reason), and the rest, 4769 included, are
+    emitted locally and not ingested. That split is deliberate: emitting is
+    free, ingesting is not.
 
     COST. This script costs nothing to run. The audit policy it sets is where
     the money is, and it is worth being blunt about the shape of it:
@@ -89,7 +95,7 @@
         4768, 4771 and 4776 (collectDirectoryAuthEvents, on by default) plus
         Sysmon EID 1/10. 4769 is EMITTED to the local Security log by this
         script and is NOT ingested into Sentinel: it is the highest-volume event
-        on a DC and no rule consumes it. Adding it to the DCR's XPath list is a
+        on a production DC and no rule consumes it. Adding it to the DCR's XPath list is a
         spending decision, not a config tweak - make it alongside the T1558.003
         rule that needs it, not before.
       - The local Security event log is a ring buffer. A DC with these
@@ -511,8 +517,10 @@ try {
     # 4. The SPN. THIS IS THE SECTION THAT MATTERS.
     # ------------------------------------------------------------------
     # Registering a Service Principal Name on a normal USER account is what makes
-    # Kerberoasting (MITRE T1558.003) possible, and therefore what makes it
-    # detectable. The mechanics, because the detection depends on them:
+    # Kerberoasting (MITRE T1558.003) possible, and therefore the precondition
+    # for detecting it (detection also needs 4769 collected, which the DCR does
+    # not do today, and a rule). The mechanics, because the detection depends on
+    # them:
     #
     #   - Any authenticated domain user can enumerate SPNs from the directory
     #     (`setspn -T lab.dlpz.local -Q */*`, GetUserSPNs.py, Rubeus kerberoast).
@@ -535,9 +543,11 @@ try {
     # HONEST LIMIT ON THE CRACK, not on the detection: this account gets the same
     # strong lab password as everyone else, so a real crack attempt against it
     # will fail. That is fine and intentional. The lab is measuring whether the
-    # DC emits and Sentinel ingests the 4769 REQUEST, not whether an offline
-    # crack succeeds. If you want the crack to succeed for a demo, set a weak
-    # password on this one account by hand and say so in the writeup.
+    # DC EMITS the 4769 REQUEST, not whether an offline crack succeeds. The DCR
+    # does not collect 4769 (dcr.bicep excludes it on cost), so confirming
+    # ingestion means adding the 4769 XPath alongside the T1558.003 rule. If you
+    # want the crack to succeed for a demo, set a weak password on this one
+    # account by hand and say so in the writeup.
     #
     # SECOND HONEST LIMIT, on ticket encryption type: the classic Kerberoast
     # detection keys on TicketEncryptionType 0x17 (RC4), because attackers
@@ -651,10 +661,15 @@ try {
     #                                       yourself. This script does not modify
     #                                       any SACL.
     #
+    # Not set here, left at the DC's default:
+    #   Credential Validation (4776/4777) - NTLM validation. The DCR DOES collect
+    #     4776 (collectDirectoryAuthEvents; no consuming rule yet), and in the
+    #     2026-09-04 live fire the default policy already produced it: 10 x 4776
+    #     were ingested, each co-timed with a failed (4625) or successful (4624)
+    #     validation.
+    #
     # Deliberately NOT enabled, and why - same reasoning as the DCR's
     # "deliberately NOT collected" list:
-    #   Credential Validation (4776/4777) - NTLM validation, very high volume on a
-    #     DC, and no rule in rules/ consumes it. Add it with the rule that needs it.
     #   Directory Service Changes (5136/5137/5139/5141) - richer than 4662 because
     #     it carries old and new attribute values, but equally SACL-gated and
     #     materially more voluminous. Worth enabling for a specific AD-persistence

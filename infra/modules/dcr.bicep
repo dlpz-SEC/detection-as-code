@@ -12,9 +12,8 @@
 // WIDENED FOR THE DOMAIN CONTROLLER (2026-09-03). The original list assumed a
 // standalone member server. vm.bicep now has promoteToDomainController (Phase
 // 2b, default false), and a DC emits authentication telemetry a member server
-// simply does not have. vm.bicep hands the decision here on purpose: "Widening
-// the DCR to collect them is a separate, deliberate spending decision - see
-// dcr.bicep." This is that decision. Six IDs were added, two of the obvious
+// simply does not have. vm.bicep defers the collection decision here on
+// purpose. This is that decision. Six IDs were added, two of the obvious
 // candidates were dropped on cost, and both drops are written down below so
 // nobody re-litigates them from scratch.
 //
@@ -50,7 +49,8 @@
 //        pre-authentication type 0 on an account flagged "do not require
 //        Kerberos preauthentication". DC-ONLY producer.
 //   4771 Kerberos pre-authentication failed
-//        Named consumers, with a caveat that must not be skipped.
+//        No rule selects it today. Intended consumers, with a caveat that must
+//        not be skipped.
 //        password_spray_single_source and bruteforce_failures_then_success both
 //        select EventID 4625, and a DC does not emit 4625 for a Kerberos
 //        password failure. Collecting 4771 closes the TELEMETRY gap; the rules
@@ -59,7 +59,8 @@
 //        shape), 0x12 a disabled/locked/expired account. Low volume: failures
 //        only. DC-ONLY producer.
 //   4776 NTLM credential validation
-//        Same two rules, same caveat, NTLM path instead of Kerberos. Error
+//        No rule selects it today either. Same two intended rules, same caveat,
+//        NTLM path instead of Kerberos. Error
 //        0xC000006A is a bad password, 0xC0000064 is no such user. Unlike
 //        4768/4771 this ALSO fires on a non-DC for local-account NTLM, so it
 //        starts billing on the standalone VM as soon as this DCR updates.
@@ -87,7 +88,10 @@
 //        highest-volume event a domain controller produces: one per service
 //        ticket, so a single interactive logon fans out into several and every
 //        share access, LDAP bind and mapped drive adds more. There is no
-//        Kerberoasting rule in rules/ to consume it today.
+//        Kerberoasting rule in rules/ to consume it today. The volume argument
+//        is a production-scale one: on this lab DC the only measurement (local
+//        Security log, 20 minutes to 2026-09-04 05:29Z) counted 2 x 4769 against
+//        175 x 4672, so here the operative reason is the missing rule.
 //        The affordable version is a predicate rather than the whole ID, since
 //        the Kerberoasting signal is specifically RC4 tickets:
 //          Security!*[System[(EventID=4769)]] and *[EventData[Data[@Name='TicketEncryptionType']='0x17']]
@@ -141,7 +145,7 @@
 //   | summarize Events = count(), GB = sum(_BilledSize) / 1024 / 1024 / 1024 by EventID
 //   | order by GB desc
 //
-// Lab DC (a single-VM forest, a handful of seeded accounts, one joined host),
+// Lab DC (a single-VM forest, a handful of seeded accounts, no joined members),
 // order of magnitude per day:
 //   4768        10^2        a TGT per user logon and renewal, plus machine accounts
 //   4771        10^0-10^1   baseline; hundreds during a deliberate spray simulation

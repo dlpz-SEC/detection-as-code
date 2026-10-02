@@ -9,12 +9,13 @@
 // capital, not infrastructure. Teardown is `az group delete`.
 //
 // TEARDOWN CAVEAT — rebuild is not always a clean slate. Log Analytics
-// soft-deletes a workspace for 14 days. Because main.bicepparam deliberately
-// pins the same subscription, resource group, workspace name and region, a
-// redeploy inside that window RECOVERS the soft-deleted workspace rather than
-// creating a new one: the old data and the existing Sentinel trial state come
-// back with it, while installed solutions and linked services are gone for
-// good. For a genuinely fresh lab, either wait out the 14 days or change
+// soft-deletes a workspace for 14 days. Because the defaults below (and
+// main.bicepparam) deliberately pin the same resource group, workspace name and
+// region, a redeploy into the same subscription (taken from the az CLI context;
+// nothing here pins it) inside that window RECOVERS the soft-deleted workspace
+// rather than creating a new one: the old data and the existing Sentinel trial
+// state come back with it, while installed solutions and linked services are
+// gone for good. For a genuinely fresh lab, either wait out the 14 days or change
 // workspaceName. `az monitor log-analytics workspace delete --force` skips the
 // soft-delete window if you mean it.
 //

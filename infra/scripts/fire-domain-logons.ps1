@@ -45,12 +45,12 @@
     (pre-authentication failed). Measured, not assumed: a 2026-09-04 run produced
     exactly 8x 4625 and 0x 4771.
 
-    That is fine for the two rules in rules/ - both select EventID 4625, so the
-    telemetry they consume is genuinely produced. It is NOT sufficient to prove
-    the Kerberos collection path. Doing that needs authentication from a
-    domain-JOINED member host over Kerberos, which needs a second VM; until then
-    4768/4771 are configured and deployed but unexercised, and any claim about
-    them should say so.
+    That is fine for the two 4625-based rules in rules/ - both select EventID
+    4625, so the telemetry they are written against is genuinely produced. It is
+    NOT sufficient to prove the Kerberos collection path. Doing that needs
+    authentication from a domain-JOINED member host over Kerberos, which needs a
+    second VM; until then 4768/4771 are configured in the DCR but unexercised,
+    and any claim about them should say so.
 
     CREDENTIAL HANDLING. The password arrives as a parameter and is used only to
     produce ONE successful validation. The wrong password is a fixed literal that

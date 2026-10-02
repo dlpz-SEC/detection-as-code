@@ -48,9 +48,10 @@ Audit:       10 subcategories enabled, read back from auditpol
 
 `m.okafor` is in Domain Admins deliberately, so privileged and unprivileged logons are
 distinguishable in the telemetry itself (via `4672`) rather than by looking the account up
-afterwards. The SPN on `svc-sqlreport` is the object a Kerberoasting (T1558.003) detection
-would otherwise have nothing to fire on — `configs/coverage_config.yml` lists T1558.003 as
-critical priority with no covering rule.
+afterwards. The SPN on `svc-sqlreport` is the target a Kerberoasting (T1558.003) detection
+needs, and `configs/coverage_config.yml` lists T1558.003 as critical priority with no covering
+rule. The target alone does not make Kerberoasting detectable here: the event such a rule fires
+on, `4769`, is deliberately not collected by the DCR (see the collection path below).
 
 ---
 
@@ -87,6 +88,7 @@ a detection for it. Window: **2026-09-04T05:23:23Z – 05:23:26Z**.
 SecurityEvent
 | where TimeGenerated > datetime(2026-09-04T05:20:00Z)
 | summarize Events=count(), First=min(TimeGenerated), Last=max(TimeGenerated) by EventID
+| order by EventID asc
 ```
 
 | EventID | Events | First | Last |
@@ -95,8 +97,15 @@ SecurityEvent
 | **4625** | **8** | **05:23:23.442Z** | **05:23:26.325Z** |
 | 4672 | 101 | 05:20:08.156Z | 05:29:20.293Z |
 
-The eight `4625` records bound exactly to the fire window. Both credential-access rules in the
-corpus select `EventID 4625`, so this is the telemetry they actually consume.
+This table is incomplete. The output was captured through `head -40`, which cut it off after
+the `4672` row, and the rows are ordered by EventID, so any higher ID was never seen. `4776` was
+ingested: `docs/evidence/sentinel-livefire-query.json` (every `SecurityEvent` row from 05:23:00Z
+to 05:24:00Z) holds 10 `4776` rows alongside 16 `4624`, 8 `4625` and 15 `4672`. The `4776`
+count for the full window since 05:20Z was not captured.
+
+The eight `4625` records bound exactly to the fire window. Both 4625-based rules in the corpus
+(`password_spray_single_source`, `bruteforce_failures_then_success`) select `EventID 4625`, so
+this is the telemetry they are written against.
 
 ### Shape 1 — password spray
 
@@ -116,8 +125,12 @@ sc200winvm.lab.dlpz.local   8         6                 a.chen, p.novak, t.walsh
                                                         j.reyes, svc-backup, m.okafor
 ```
 
-One source, six distinct accounts, low count per account — the breadth signal spraying
-produces and lockout-threshold alerting misses.
+Six distinct accounts from one source: `IpAddress` is 10.20.0.4 on all eight rows in the
+evidence export. The query above groups by the logging `Computer`; the spray rule groups by
+`IpAddress`. The six mix both shapes: the five spray targets once each, plus the brute-force
+target `m.okafor` three times. The five spray accounts alone meet the rule's threshold of 5
+distinct `TargetUserName` per `IpAddress` within an hour. That breadth at a low count per
+account is the signal spraying produces and lockout-threshold alerting misses.
 
 ### Shape 2 — bruteforce then success
 
@@ -132,16 +145,22 @@ SecurityEvent
 ```
 
 ```
-05:23:25.4997  4776  m.okafor    NTLM credential validation (fail)
+05:23:25.4997  4776  m.okafor    NTLM credential validation
 05:23:25.4998  4625  m.okafor    failed logon 1
 05:23:25.9199  4776  m.okafor
 05:23:25.9200  4625  m.okafor    failed logon 2
 05:23:26.3253  4776  m.okafor
 05:23:26.3253  4625  m.okafor    failed logon 3
-05:23:26.7324  4776  m.okafor    NTLM credential validation (success)
+05:23:26.7324  4776  m.okafor    NTLM credential validation
 05:23:26.7339  4672  m.okafor    SPECIAL PRIVILEGES ASSIGNED
 05:23:26.7340  4624  m.okafor    SUCCESSFUL LOGON
 ```
+
+The query projected no status column, so the outcome of each `4776` is inferred from the `4625`
+or `4624` beside it, not read from the event. The run produced 3 failures for `m.okafor`, below
+the rule's threshold of 5 per `TargetUserName` within an hour. This shows the event sequence the
+rule keys on, not a sequence that meets its threshold; a run that meets it needs
+`-FailuresPerAccount 5`, the script's maximum.
 
 Failures alone are noise. Failures followed by a valid logon from the same source is a
 compromised credential, and the `4672` immediately preceding the `4624` makes it a
@@ -160,9 +179,13 @@ SecurityEvent
 
 ```
 SubjectUserName   Count
-sc200winvm$       14      (the computer account, normal DC activity)
+sc200winvm$       14      (the DC's computer account)
 m.okafor          1       (the live-fire success)
 ```
+
+13 of the 14 computer-account rows fall in the 0.3 s between 05:23:23.148Z and the first spray
+failure at 05:23:23.442Z, which points at the fire script's own setup rather than background
+activity. The cause was not captured.
 
 `a.chen` authenticated successfully in the same window and produced a `4624` with **no**
 `4672`. The distinction is present in the telemetry, not asserted on top of it.
@@ -179,13 +202,19 @@ Recorded because evidence that overstates itself is worse than none.
   not**. The Kerberos collection path in the DCR is therefore configured and deployed but
   **not yet exercised**. Exercising it needs authentication from a domain-joined member over
   Kerberos, not a local bind on the DC itself.
-- **`4769` appeared (2 events) from ordinary DC activity, not from a Kerberoast.** No
-  Kerberoasting was performed. The SPN exists so that a future T1558.003 rule has a target;
-  the attack itself was not run.
-- **No Sentinel analytics rule was fired for these events.** The two credential-access rules
-  live in `rules/` and were not deployed as scheduled analytics rules during this window, so
-  this evidence proves the *telemetry path* and the *detection shape*, not an end-to-end
-  incident. Incident-to-triage remains Phase 6 and is still unproven.
+- **`4769` was emitted locally but never ingested.** A `Get-WinEvent` read of the DC's local
+  Security log (via `az vm run-command` at 05:29Z, 20-minute lookback) counted 2 `4769`
+  events. Only counts were returned, so their fields and cause were not captured. No
+  Kerberoasting was performed. They could not reach Sentinel: `infra/modules/dcr.bicep`
+  deliberately excludes 4769 (cost, no consuming rule). The same read found no `4768` or
+  `4771`. The SPN exists so that a future T1558.003 rule has a target, and that rule also needs
+  4769 added to the DCR before it can fire in Sentinel.
+- **No Sentinel analytics rule was fired for these events, and none could have been.** The two
+  4625-based rules are Sigma correlation rules, which this pipeline cannot deploy to Sentinel:
+  `sentinel/rule_map.yml` marks both `target: none`, because the kusto backend has no
+  correlation support. So this evidence proves the *telemetry path* and the event sequence each
+  rule keys on (the spray meets its rule's threshold; the brute-force run does not), not an
+  end-to-end incident. Incident-to-triage remains Phase 6 and is still unproven.
 - **The `UNPROTECTED` reading on the OUs was a reporting bug, and the true state is now
   unverifiable.** This bullet previously recorded it as a real discrepancy between
   `seed-ad.ps1`'s stated intent and its behavior. That was wrong, and the correction is
@@ -196,7 +225,8 @@ Recorded because evidence that overstates itself is worse than none.
   its actual ACL. `New-LabOu` passes `-ProtectedFromAccidentalDeletion $true` and the seed
   reported `0 failed`, so there is no evidence the creation path ever misbehaved - but the
   lab was torn down the same night, so **the ACLs cannot now be re-read to prove it either
-  way.** Fixed in `seed-ad.ps1` on 2026-09-04: the query requests the property, and `$null`
+  way.** Fixed in `seed-ad.ps1` (edited 2026-09-04, committed 2026-09-05 as `11812ac`): the
+  query requests the property, and `$null`
   now reports as `UNKNOWN (property not returned)` rather than being folded into `false`. Any
   future run produces a real measurement; this one did not.
 - The lab used a single shared password across all seven accounts, which is a lab convenience
@@ -206,11 +236,13 @@ Recorded because evidence that overstates itself is worse than none.
 
 ## Cost and teardown
 
-`Standard_D2s_v6` Windows in westus at $0.21/hour, run for well under an hour, plus a
-32 GB `StandardSSD_LRS` data disk and the OS disk prorated. Total for this exercise was
-**under $2**.
+`Standard_D2s_v6` Windows in westus at $0.21/hour, run for just under an hour (deployed from
+04:52Z, deleted by 05:47Z), plus a 32 GB `StandardSSD_LRS` data disk and the OS disk prorated.
+Estimated total for this exercise: **under $2**. Actual spend was not captured; the Cost
+Management query was rate-limited.
 
 Teardown was `az group delete --name sc200-lab-rg`. Note the 14-day Log Analytics soft-delete
-window: because `main.bicepparam` pins the same subscription, resource group, workspace name
-and region, a redeploy inside that window **recovers** the soft-deleted workspace rather than
-creating a fresh one.
+window: because the template defaults (and `main.bicepparam`) pin the same resource group,
+workspace name and region, a redeploy into the same subscription inside that window
+**recovers** the soft-deleted workspace rather than creating a fresh one. The subscription comes
+from the `az` CLI context; nothing in the repo pins it.

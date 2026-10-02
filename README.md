@@ -193,9 +193,11 @@ Sysmon) via Bicep. That VM can be promoted in-template to an **Active Directory 
 controller** (`promoteToDomainController`, Phase 2b): `promote-dc.ps1` installs AD DS and creates
 the forest, `seed-ad.ps1` seeds OUs, users, groups, a Kerberoastable SPN and the audit
 subcategories, and `fire-domain-logons.ps1` generates real authentication telemetry against it.
-The DCR is widened to collect the resulting `4624/4625/4672/4768/4771/4776` and friends. The
-build, the queries that confirmed the events landed in Sentinel, and its honest limits are in
-[`docs/AD_LAB_EVIDENCE.md`](docs/AD_LAB_EVIDENCE.md).
+The DCR collects `4624/4625` on every associated host and, by default
+(`collectDirectoryAuthEvents`), adds `4672/4728/4732/4768/4771/4776`; `4769` is deliberately
+excluded on cost. The live fire authenticated over NTLM, so `4624/4625/4672/4776` were confirmed
+in Sentinel and `4768/4771` were never produced. The build, the queries, and its honest limits
+are in [`docs/AD_LAB_EVIDENCE.md`](docs/AD_LAB_EVIDENCE.md).
 
 **The Azure lab is deliberately burst infrastructure: it is stood up, exercised, evidenced, and
 torn down the same session, so it is not running now.** Cost model, per-phase deploy commands and
@@ -212,7 +214,8 @@ capture *is* the record.
   creation, the seeded directory, the audit subcategories enabled, the live-fire authentication
   run, and the Sentinel queries confirming those events landed. It carries an **honest-limits**
   section naming what the run did *not* prove — the fire authenticated over NTLM, so `4768`/`4771`
-  are deployed but unexercised, and no analytics rule was armed during the window.
+  were never exercised, and the two 4625-based correlation rules cannot be deployed to Sentinel by
+  this pipeline, so no incident was raised.
 - [`docs/evidence/`](docs/evidence/) — the raw JSON behind that document: directory export, DCR
   configuration, and the live-fire query results.
 - [`sentinel/README.md`](sentinel/README.md) — the `Event`-table trap and the live verification of

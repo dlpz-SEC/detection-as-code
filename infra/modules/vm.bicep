@@ -5,7 +5,9 @@
 //   1. Azure Monitor Agent (AMA)  — the shipper.
 //   2. A Data Collection Rule ASSOCIATION — binds THIS VM to the existing
 //      dcr-windows-security-events so AMA knows what to collect (Security
-//      4624/4625 + Sysmon EID 1/10). Without the association the agent is idle.
+//      4624/4625, plus 4672/4728/4732/4768/4771/4776 while
+//      collectDirectoryAuthEvents is on, which is the default; Sysmon EID 1/10;
+//      see dcr.bicep). Without the association the agent is idle.
 //   3. Sysmon + a config — the EID 1/10 rules have no telemetry otherwise; a
 //      stock VM has no Sysmon, and stock Sysmon does not emit EID 10 without an
 //      explicit ProcessAccess rule (see sysmonconfig.xml).
@@ -23,12 +25,14 @@
 // this same VM into the lab's AD DS domain controller rather than adding a
 // second machine. That changes four things (each commented at its site): an
 // uncached data disk for NTDS/SYSVOL, a static private IP, a resolver pointed
-// at itself, and a third extension running promote-dc.ps1.
+// at itself, and a run command (not a third extension) running promote-dc.ps1.
 //
 // What it buys: the 4624/4625 the DCR already collects stop being local logons
-// and become DOMAIN authentication, and the box starts emitting the Kerberos
-// events (4768/4769/4771) that AD detections key on. Widening the DCR to
-// collect them is a separate, deliberate spending decision - see dcr.bicep.
+// and become DOMAIN authentication, and the box can emit the Kerberos events
+// (4768/4769/4771) that AD detections key on (4771 only with Kerberos
+// Authentication Service Failure auditing, which seed-ad.ps1 sets). The
+// collection decision lives in dcr.bicep: 4768/4771 are collected by default
+// via collectDirectoryAuthEvents, and 4769 is deliberately not, on cost.
 //
 // What it costs beyond the VM: one more managed disk billed 24/7. Note that the
 // OS disk and the static public IP already bill whether or not the VM is
@@ -80,7 +84,8 @@ param tags object
 //
 // What flipping this on changes: an uncached data disk is attached for
 // NTDS/SYSVOL, the private IP goes static (a DC cannot float), the NIC points
-// its resolver at itself, and a third extension runs promote-dc.ps1.
+// its resolver at itself, and a run command (not a third extension) runs
+// promote-dc.ps1.
 
 @description('Promote this VM to an Active Directory domain controller. STARTS THE AD DS PATH: attaches a data disk, pins the private IP, repoints DNS, and runs promote-dc.ps1. Requires dsrmPassword.')
 param promoteToDomainController bool = false

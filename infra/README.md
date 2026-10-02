@@ -45,8 +45,10 @@ that costs nothing.
 
 The DCR's XPath queries are narrow on purpose. On every associated host it collects Security
 4625 (two rules) and 4624 (investigation context), plus Sysmon EID 1 and 10. With
-`collectDirectoryAuthEvents` (on by default, for the domain controller) it adds 4672, 4728,
-4732, 4768, 4771 and 4776; `modules/dcr.bicep` justifies each one and records why 4769, 5136,
+`collectDirectoryAuthEvents` (on by default, and added for the domain controller) it adds 4672,
+4728, 4732, 4768, 4771 and 4776. The rule is shared, so every associated host collects those
+too, and 4672, 4732 and 4776 also fire and bill on a host that is not a DC.
+`modules/dcr.bicep` justifies each one and records why 4769, 5136,
 4720, 4756 and 4688 stay out. A single Windows VM running
 attack simulations will exhaust a 1 GB/day cap if you collect everything — collecting the
 whole Sysmon Operational channel alone can do it. Widening the XPath list is a spending
@@ -174,8 +176,11 @@ only. That value is visible in the ARM request and in shell history — **use a 
 never reuse a real password here.**
 
 Promotion changes what the existing DCR sees: `4624/4625` stop being local logons and become
-**domain** authentication. The Kerberos events (`4768/4769/4771`) an AD detection needs are a
-separate, deliberate spending decision — see the event-ID inventory in `modules/dcr.bicep`.
+**domain** authentication. The Kerberos collection decision is already made in
+`modules/dcr.bicep`: with `collectDirectoryAuthEvents` (default `true`; `main.bicep` does not
+override it) the DCR collects `4768` and `4771`. `4769` is deliberately not collected (cost, no
+consuming rule), so adding it is the remaining spending decision, to be made alongside a
+T1558.003 rule. See the event-ID inventory in `modules/dcr.bicep`.
 
 ## Deploying
 
@@ -209,8 +214,10 @@ Capture evidence **before** teardown, never after. A deleted workspace takes its
 incidents, its analytics rules, and its query history with it.
 
 **Rebuild is not automatically a clean slate.** Log Analytics soft-deletes a workspace for
-14 days, and `main.bicepparam` pins the same subscription, resource group, workspace name
-and region — exactly the tuple Azure uses to resurrect one. A redeploy inside that window
+14 days, and the template defaults (and `main.bicepparam`) pin the same resource group,
+workspace name and region. Deployed into the same subscription, which comes from the `az` CLI
+context rather than from the repo, that is exactly the tuple Azure uses to resurrect one. A
+redeploy inside that window
 recovers the old workspace, bringing its data and existing Sentinel trial state back with
 it, while installed solutions and linked services stay gone. For a genuinely fresh lab,
 wait out the 14 days, change `workspaceName`, or delete with
