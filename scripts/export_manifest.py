@@ -137,8 +137,9 @@ def extract_rule_entry(
     # byte-identical regardless of OS or how --rules-dir was spelled
     path = (Path(rules_dir.name) / rule_path.relative_to(rules_dir)).as_posix()
 
-    # Native Wazuh rule IDs for this detection (ADTE joins live alert rule.id
-    # against this list). Empty when the rule has no Wazuh twin in rule_map.yml.
+    # Native Wazuh rule IDs for this detection: the intended ADTE join matches a
+    # live alert's rule.id against this list (ADTE has no manifest reader yet).
+    # Empty when the rule has no Wazuh twin in rule_map.yml.
     wazuh_rule_ids = (wazuh_ids_by_sigma or {}).get(rule.get("id"), [])
 
     return {
@@ -159,9 +160,10 @@ def warn_on_id_issues(entries: list[dict]) -> None:
     """
     Warn (non-fatally) about missing or duplicate rule ids.
 
-    ADTE joins triaged incidents back to detections on `id`, so a null or
-    duplicated id silently breaks that mapping. Schema validation (CI stage 1)
-    is the hard gate; this is a defense-in-depth heads-up at export time.
+    `id` is the key the intended ADTE join will use to map triaged incidents
+    back to detections, so a null or duplicated id would silently break that
+    mapping. Schema validation (CI stage 1) is the hard gate; this is a
+    defense-in-depth heads-up at export time.
     """
     seen: dict[object, list[str]] = {}
     for entry in entries:
@@ -224,7 +226,7 @@ def write_manifest(manifest: dict, output_path: Path) -> bool:
     """
     # Serialize up front: a non-JSON-serializable value (e.g. a bare YAML date)
     # raises here, BEFORE we open the file, so we never leave a truncated
-    # manifest behind - the last good file (which ADTE consumes) survives.
+    # manifest behind - the last good file (ADTE's contract) survives.
     payload = json.dumps(manifest, indent=2) + "\n"
 
     if output_path.exists():

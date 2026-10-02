@@ -276,7 +276,7 @@ def test_malformed_and_non_dict_yaml_skipped(tmp_path):
 
 
 def test_duplicate_and_null_id_warn(tmp_path, capsys):
-    """Duplicate or missing rule ids emit a warning (ADTE joins on id)."""
+    """Duplicate or missing rule ids emit a warning (id is the ADTE join key)."""
     rules_dir = tmp_path / "rules"
     write_rule(rules_dir, "windows/a.yml", make_rule(id="shared-id"))
     write_rule(rules_dir, "windows/b.yml", make_rule(id="shared-id"))
