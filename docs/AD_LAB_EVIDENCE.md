@@ -73,7 +73,9 @@ Microsoft-Windows-Sysmon/Operational!*[System[(EventID=1 or EventID=10)]]
 ```
 
 Path: domain controller → Azure Monitor Agent → `dcr-windows-security-events` →
-`law-sc200-sentinel` (`da5be621-5078-475e-a864-de10f0c2e1e7`) → `SecurityEvent`.
+`law-sc200-sentinel` (`da5be621-5078-475e-a864-de10f0c2e1e7`) → `SecurityEvent` for the
+`Security` lines. The Sysmon line uses the `Microsoft-Event` stream and lands in the generic
+`Event` table instead.
 
 ---
 

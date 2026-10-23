@@ -72,8 +72,11 @@ starts**. The `vm.bicep` module wires all three things a stock VM lacks:
    collect. Without it the agent is idle. (So `deployVm` requires `deployDataCollectionRule = true`.)
 3. **Sysmon + config** — installed by a Custom Script Extension that embeds
    `sysmonconfig.xml` (base64, no external script host) and pulls the Sysmon binary from the
-   official Sysinternals URL. The config logs **only** EID 1 (process create) and EID 10
-   (lsass access) to stay under the 1 GB/day cap.
+   official Sysinternals URL. The config sets filters for **only** EID 1 (process create)
+   and EID 10 (access to `lsass.exe`), and the DCR collects only those two IDs from the
+   Sysmon channel, to stay under the 1 GB/day cap. Sysmon's local log is not limited to
+   those two: EID 4 (service started or stopped) and EID 16 (config changed) cannot be
+   filtered by any config, and the DCR does not collect them.
 
 Cost + exposure controls baked in: burstable `Standard_B2s`, a nightly **auto-shutdown**
 schedule, and an NSG RDP rule that is **fail-closed** — with no `allowedRdpSourceIp` it locks

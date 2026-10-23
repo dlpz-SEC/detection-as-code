@@ -1,12 +1,18 @@
 <Sysmon schemaversion="4.90">
   <!--
     Minimal Sysmon config for the detection lab — deliberately narrow to respect
-    the workspace's 1 GB/day ingestion cap. Logs ONLY the two event IDs the rule
-    corpus keys on:
+    the workspace's 1 GB/day ingestion cap. It sets filters for ONLY the two
+    event IDs the rule corpus keys on:
       EID 1  (ProcessCreate) -> powershell_encoded_command
       EID 10 (ProcessAccess) -> lsass_memory_access
+    That is not a full list of what Sysmon writes to its local log: EID 4
+    (service started or stopped) and EID 16 (config changed) cannot be
+    filtered, and EID 255 is written on an internal error. The DCR
+    (dcr.bicep) collects only EID 1 and EID 10 from this channel, so no
+    other Sysmon event reaches the workspace.
     A stock Sysmon install does NOT emit EID 10 without an explicit ProcessAccess
-    rule, which is why this config exists. Widening it is a spending decision.
+    rule, which is why this config exists. Widening it adds workspace ingestion
+    only if the DCR's Sysmon XPath is widened with it.
   -->
   <EventFiltering>
     <!-- Log every process creation. onmatch="exclude" with no children = include all. -->
