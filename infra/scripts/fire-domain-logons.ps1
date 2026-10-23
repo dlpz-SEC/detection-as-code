@@ -62,8 +62,8 @@
     are deliberately kept under the default lockout threshold so the run does not
     lock the accounts it needs for the success phase.
 
-    RUNNING IT REMOTELY (no RDP), the established pattern from LESSONS.md
-    2026-08-28:
+    RUNNING IT REMOTELY (no RDP), the same az vm run-command pattern as
+    seed-ad.ps1 (the VM must be running):
 
       az vm run-command invoke -g sc200-lab-rg -n sc200-win-vm \
         --command-id RunPowerShellScript \

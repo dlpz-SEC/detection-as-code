@@ -51,10 +51,10 @@ output/
 # Screenshots and images — DENY BY DEFAULT, and the default is the point.
 # An image is opaque to every guard in this repo: code review, grep, and the CI
 # checks all read text, so a credential baked into pixels passes all of them
-# without a warning. This repo is public, and per LESSONS 2026-08-28 GitHub keeps
-# `refs/pull/N/head` forever — an image committed once cannot be withdrawn by a
-# history rewrite. The cost of this rule is one negation line when you genuinely
-# want to publish a picture; the cost of not having it is permanent.
+# without a warning. This repo is public, and GitHub keeps `refs/pull/N/head`
+# until GitHub Support purges it — an image committed once cannot be withdrawn
+# by a history rewrite. The cost of this rule is one negation line when you
+# genuinely want to publish a picture; the cost of not having it is permanent.
 *.png
 *.jpg
 *.jpeg

@@ -134,18 +134,18 @@
     reconciled - if you rename an OU or move a user by hand, this script will
     report the object missing and create a second one rather than fixing yours.
 
-    RUNNING IT REMOTELY (no RDP). The established pattern for this lab, from
-    LESSONS.md 2026-08-28: drive the VM through the control plane from an
-    already-authenticated Cloud Shell instead of opening an RDP client and
-    fetching the admin password.
+    RUNNING IT REMOTELY (no RDP). The established pattern for this lab: drive
+    the VM through the control plane from an already-authenticated Cloud
+    Shell instead of opening an RDP client and fetching the admin password.
 
       # The VM must be RUNNING. az vm run-command fails with
       # OperationNotAllowed on a deallocated VM, and a recent telemetry
-      # timestamp is NOT evidence that it is up (LESSONS.md 2026-08-28).
+      # timestamp is NOT evidence that it is up - it dates the last event,
+      # not whether the VM is still running.
       az vm start -g sc200-lab-rg -n sc200-win-vm
 
-      # Run from the REPO ROOT on a branch that actually has this file, or the
-      # @-relative path resolves to nothing (LESSONS.md 2026-08-28).
+      # Run from the REPO ROOT on a branch that actually has this file: if az
+      # cannot open the @ path, it sends the literal text as the script.
       az vm run-command invoke \
         --resource-group sc200-lab-rg \
         --name sc200-win-vm \
@@ -399,7 +399,7 @@ try {
         throw 'Not running elevated. auditpol and the directory writes both need it. (Under az vm run-command this runs as SYSTEM and is already elevated.)'
     }
 
-    # -IncludeManagementTools in promote-ad.ps1's Install-WindowsFeature is what
+    # -IncludeManagementTools in promote-dc.ps1's Install-WindowsFeature is what
     # puts this module on the box. If it is missing, promotion was done some
     # other way and the RSAT AD PowerShell feature needs installing.
     Import-Module ActiveDirectory
