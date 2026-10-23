@@ -15,8 +15,8 @@ references:
     - https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_powershell_exe
     - https://www.sans.org/blog/powershell-obfuscation-techniques/
 author: Detection Engineering Team
-date: 2024/02/01
-modified: 2024/03/15
+date: 2026/02/05
+modified: 2026/02/05
 tags:
     - attack.execution
     - attack.t1059
@@ -140,4 +140,4 @@ custom:
     
     owner: detection-engineering@example.com
     review_frequency: monthly
-    last_reviewed: 2024-03-15
+    last_reviewed: 2026-02-05

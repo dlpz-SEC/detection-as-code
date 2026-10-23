@@ -15,8 +15,8 @@ references:
     - https://github.com/GhostPack/Rubeus
     - https://github.com/gentilkiwi/mimikatz
 author: Detection Engineering Team
-date: 2024/01/15
-modified: 2024/03/20
+date: 2026/02/05
+modified: 2026/02/05
 tags:
     - attack.credential-access
     - attack.t1003
@@ -133,4 +133,4 @@ custom:
     
     # SLA for rule updates when new evasions are discovered
     review_frequency: quarterly
-    last_reviewed: 2024-03-20
+    last_reviewed: 2026-02-05
