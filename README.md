@@ -199,16 +199,16 @@ excluded on cost. The live fire authenticated over NTLM, so `4624/4625/4672/4776
 in Sentinel and `4768/4771` were never produced. The build, the queries, and its honest limits
 are in [`docs/AD_LAB_EVIDENCE.md`](docs/AD_LAB_EVIDENCE.md).
 
-**The Azure lab is deliberately burst infrastructure: it is stood up, exercised, evidenced, and
-torn down the same session, so it is not running now.** Cost model, per-phase deploy commands and
-teardown are in [`infra/README.md`](infra/README.md). Re-running the pipeline against Sentinel
-means redeploying it first.
+**The Azure lab is not running now.** It is designed as burst infrastructure, but it was kept in
+place across sessions rather than torn down after each one: its workspace was created 2026-08-16,
+and the resource group was deleted on 2026-09-04 (UTC), after the AD evidence was captured. Cost
+model, per-phase deploy commands and teardown are in [`infra/README.md`](infra/README.md).
+Re-running the pipeline against Sentinel means redeploying it first.
 
 ## Evidence
 
-The lab claims above are backed by captured artifacts rather than assertions. The lab is burst
-infrastructure that gets torn down after each run, so nothing here can be re-queried later — the
-capture *is* the record.
+The lab claims above are backed by captured artifacts rather than assertions. The lab has since
+been torn down, so nothing here can be re-queried later — the capture *is* the record.
 
 - [`docs/AD_LAB_EVIDENCE.md`](docs/AD_LAB_EVIDENCE.md) — the domain-controller build: forest
   creation, the seeded directory, the audit subcategories enabled, the live-fire authentication

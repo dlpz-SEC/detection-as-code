@@ -9,13 +9,13 @@
 // context. Widening this is a spending decision, not a config tweak. The events
 // added here are the events billed for.
 //
-// WIDENED FOR THE DOMAIN CONTROLLER (2026-09-03). The original list assumed a
-// standalone member server. vm.bicep now has promoteToDomainController (Phase
-// 2b, default false), and a DC emits authentication telemetry a member server
-// simply does not have. vm.bicep defers the collection decision here on
-// purpose. This is that decision. Six IDs were added, two of the obvious
-// candidates were dropped on cost, and both drops are written down below so
-// nobody re-litigates them from scratch.
+// WIDENED FOR THE DOMAIN CONTROLLER (edited 2026-08-29, committed 2026-09-04
+// UTC). The original list assumed a standalone member server. vm.bicep now
+// has promoteToDomainController (Phase 2b, default false), and a DC emits
+// authentication telemetry a member server simply does not have. vm.bicep
+// defers the collection decision here on purpose. This is that decision. Six
+// IDs were added, two of the obvious candidates were dropped on cost, and both
+// drops are written down below so nobody re-litigates them from scratch.
 //
 // ---------------------------------------------------------------------------
 // COLLECTED, and what consumes each. Verified against rules/ and

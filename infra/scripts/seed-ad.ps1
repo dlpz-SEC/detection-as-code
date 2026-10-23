@@ -423,7 +423,7 @@ try {
     # among siblings REGARDLESS of the RDN prefix, so OU=Users next to CN=Users
     # fails with "An attempt was made to add an object to the directory with a
     # name that is already in use". Learned by hitting it on a live DC on
-    # 2026-09-03. The reason a separate OU is wanted at all still stands:
+    # 2026-09-04 (UTC). The reason a separate OU is wanted at all still stands:
     # CN=Users is a container, not an organizational unit, so Group Policy
     # cannot be linked to it and delegation against it is awkward.
     #
@@ -726,7 +726,7 @@ try {
     # the object's ACL rather than reading a stored attribute - so it is not in
     # this cmdlet's default property set. Omit the request and it comes back
     # $null, which is falsy, and a bare truth test then prints UNPROTECTED for an
-    # OU that is in fact protected. That is what happened on the 2026-09-03 run:
+    # OU that is in fact protected. That happened on the 2026-09-04 (UTC) run:
     # New-LabOu passes -ProtectedFromAccidentalDeletion $true and did not error,
     # yet every OU reported UNPROTECTED, and that false reading was carried into
     # docs/AD_LAB_EVIDENCE.md as a finding about the directory. It was a finding
