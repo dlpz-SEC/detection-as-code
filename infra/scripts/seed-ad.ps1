@@ -715,7 +715,9 @@ try {
     # shows up here as a missing row.
     Write-Output ''
     Write-Output '=============================================================='
-    Write-Output " SEED VERIFICATION  -  $($domain.DNSRoot)  -  $(Get-Date -Format 'yyyy-MM-dd HH:mm:ssZ')"
+    # UTC on purpose. Get-Date returns local time, and Z is not a .NET format
+    # specifier, so a bare 'ssZ' would print local time with a literal Z.
+    Write-Output (" SEED VERIFICATION  -  {0}  -  {1:yyyy-MM-ddTHH:mm:ssZ}" -f $domain.DNSRoot, (Get-Date).ToUniversalTime())
     Write-Output '=============================================================='
 
     $labOuNames = 'Workstations', 'Servers', 'ServiceAccounts', 'Employees', 'IT', 'Finance'
