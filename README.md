@@ -174,7 +174,7 @@ path, each with a rule-ID contract so nothing deploys silently or goes unaccount
 | Target | Seam | Deploy tool | Status |
 |---|---|---|---|
 | **Wazuh** | [`wazuh/`](wazuh/) — native XML + `rule_map.yml` | `scripts/deploy_wazuh_rules.py` (Manager API) | SSH brute-force twin verified against a **live engine** via `logtest` (Tier 2, last recorded run 2026-07-16). Windows twins cannot be verified that way |
-| **Microsoft Sentinel** | [`sentinel/`](sentinel/) — `Sysmon.kql` parser + `rule_map.yml` | `scripts/deploy_sentinel_rules.py` (ARM REST) | Parser + 2 analytics rules deployed and **detection-validated on live telemetry** |
+| **Microsoft Sentinel** | [`sentinel/`](sentinel/) — `Sysmon.kql` parser + `rule_map.yml` | `scripts/deploy_sentinel_rules.py` (ARM REST) | Parser + 2 analytics rules deployed and readback-verified 2026-08-28 (lab since torn down). A narrowed copy of the encoded-PowerShell selection **matched live telemetry**; no live trigger of the LSASS rule is recorded |
 
 Both deployers are readback-verifying (`PUT` → `GET` → compare) and support `--dry-run` /
 `--verify-only`. Every rule is dispositioned in `sentinel/rule_map.yml`; rules that cannot deploy
@@ -218,8 +218,8 @@ been torn down, so nothing here can be re-queried later — the capture *is* the
   this pipeline, so no incident was raised.
 - [`docs/evidence/`](docs/evidence/) — the raw JSON behind that document: directory export, DCR
   configuration, and the live-fire query results.
-- [`sentinel/README.md`](sentinel/README.md) — the `Event`-table trap and the live verification of
-  the encoded-PowerShell detection against real telemetry.
+- [`sentinel/README.md`](sentinel/README.md) — the `Event`-table trap and the live check of the
+  encoded-PowerShell detection logic against real telemetry.
 
 Each document states its own limits alongside its results, on the principle that evidence which
 overstates itself is worse than none.

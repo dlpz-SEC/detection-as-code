@@ -2,7 +2,7 @@
 //
 // Deploys the burst lab: a resource group, a Log Analytics workspace with a
 // daily ingestion cap, Sentinel onboarded onto it, and a Data Collection Rule
-// skeleton for Windows security events.
+// for Windows security and Sysmon events.
 //
 // The lab is designed to be torn down and rebuilt rather than left running, so
 // this file IS the lab — anything created by hand in the portal is working
@@ -36,7 +36,7 @@ targetScope = 'subscription'
 @description('Resource group to hold the lab. Deleting this group is the teardown.')
 param resourceGroupName string = 'sc200-lab-rg'
 
-@description('Azure region for the resource group and all resources in it. Must match the existing law-sc200-sentinel workspace, whose region is westus and immutable — a Log Analytics workspace cannot be moved, so deploying elsewhere fails with InvalidResourceLocation.')
+@description('Azure region for the resource group and all resources in it. westus is where the lab workspace (law-sc200-sentinel) lived until its 2026-09-04 (UTC) teardown. The region of a Log Analytics workspace cannot be changed: redeploying a workspace name that already exists in this resource group in another region fails with InvalidResourceLocation.')
 param location string = 'westus'
 
 @description('Log Analytics workspace name. Sentinel is onboarded onto this workspace.')
@@ -51,7 +51,7 @@ param dailyQuotaGb int = 1
 @maxValue(730)
 param retentionInDays int = 90
 
-@description('Deploy the Windows security-events Data Collection Rule skeleton. Only useful once a VM with the Azure Monitor Agent exists.')
+@description('Deploy the Data Collection Rule for Windows security and Sysmon events. It collects nothing until a VM with the Azure Monitor Agent is associated with it, which deployVm does.')
 param deployDataCollectionRule bool = true
 
 @description('Deploy the Windows event-source VM (Phase 2): VM + AMA + Sysmon + DCR association. STARTS COMPUTE COST. Requires deployDataCollectionRule = true.')

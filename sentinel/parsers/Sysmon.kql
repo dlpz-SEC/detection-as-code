@@ -9,10 +9,12 @@
 //   those field names directly, so they only run once this function projects the
 //   XML back into columns. KQL against the wrong table returns zero rows, no error.
 //
-// STATUS: verified against live rows on 2026-08-28.
-//   `Sysmon | summarize count() by EventID` returned EID 1 and EID 10 rows, with
-//   the fields extracted from the EventData XML into columns, and the deployed
-//   encoded-PowerShell rule matched its trigger through this function. The lab
+// STATUS: partly verified against live rows on 2026-08-28 (see below).
+//   `Sysmon | summarize count() by EventID` returned EID 1 and EID 10 rows.
+//   EventID is a native column, so that count does not show extraction. A query
+//   through this function using a narrowed copy of the encoded-PowerShell rule's
+//   selection returned its trigger event with Image, CommandLine and ParentImage
+//   populated; extraction of EID 10 fields is not evidenced. The lab
 //   has since been torn down; re-verify after any redeploy with
 //   `Event | where Source == "Microsoft-Windows-Sysmon" | take 5`. Evidence:
 //   sentinel/README.md.

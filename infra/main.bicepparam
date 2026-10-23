@@ -1,16 +1,17 @@
 using 'main.bicep'
 
-// Lab defaults. These match the workspace the lab has been using by hand, so a
-// redeploy lands on the same names rather than accumulating parallel workspaces.
+// Lab defaults. These match the workspace the lab used until its teardown on
+// 2026-09-04 (UTC), so a redeploy lands on the same names rather than
+// accumulating parallel workspaces.
 // Note the trade-off: pinning the same name/region/RG is also what makes a
 // redeploy within 14 days of teardown RECOVER the soft-deleted workspace instead
 // of building a fresh one. See the teardown caveat in main.bicep.
 
 param resourceGroupName = 'sc200-lab-rg'
-// westus, not westus2: the existing law-sc200-sentinel workspace lives in westus,
-// and a Log Analytics workspace's region is immutable. Deploying at westus2 fails
-// with InvalidResourceLocation. The DCR must share the workspace region; the single
-// location param already couples them.
+// westus, not westus2: the lab's law-sc200-sentinel workspace was in westus, and a
+// Log Analytics workspace's region is immutable. While it existed, deploying at
+// westus2 failed with InvalidResourceLocation. The DCR must share the workspace
+// region; the single location param already couples them.
 param location = 'westus'
 param workspaceName = 'law-sc200-sentinel'
 

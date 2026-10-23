@@ -7,9 +7,10 @@ Turns the pipeline's generated KQL into **runnable Microsoft Sentinel queries**.
 supplies the parser and the wrap step that close that gap — the Sentinel analogue of
 `wazuh/`, which does the same job for the Wazuh manager.
 
-Status: **Deployed and live-validated** (2026-08-28). The parser and both analytics rules run in
-the lab workspace, and a detection has fired on real telemetry — see
-[Live verification](#live-verification--passed-2026-08-28).
+Status: **Deployed, and the detection logic was checked on live rows** (2026-08-28). The parser and
+both analytics rules were deployed to the lab workspace, and a query through the parser returned
+a live encoded-PowerShell trigger event — see [Live verification](#live-verification-2026-08-28).
+The lab was torn down on 2026-09-04 (UTC).
 
 ## Key Components
 
@@ -26,7 +27,7 @@ the lab workspace, and a detection has fired on real telemetry — see
   function (first) and each wrapped query into the workspace as scheduled analytics rules via
   the ARM REST API, verifying each by readback. Mirrors `deploy_wazuh_rules.py` (`--dry-run`,
   `--verify-only`, exit codes 0/1/2). Auth is `az login` by default, or a service principal
-  via `DAC_SENTINEL_*`. **Deployed to the lab workspace** — all three artifacts readback-verified.
+  via `DAC_SENTINEL_*`. **Deployed to the lab workspace on 2026-08-28** (lab torn down 2026-09-04, UTC) — all three artifacts readback-verified.
 
 ## Why the parser exists — the `Event`-table trap
 
@@ -52,23 +53,26 @@ but in this corpus those are the correlation rules, which produce no KQL at all
 **2 rules deploy to this lab today** (both Sysmon, parser-fronted). The rest are skipped for
 concrete, documented reasons, not omission.
 
-## Live verification — passed (2026-08-28)
+## Live verification (2026-08-28)
 
-`Sysmon.kql` is no longer schema-only. The parser, both analytics rules, and the end-to-end
-detection path were confirmed against real rows in the lab workspace (`law-sc200-sentinel`).
+`Sysmon.kql` is no longer schema-only. The parser's EID 1 field extraction, and a narrowed copy of
+the encoded-PowerShell rule's selection, were checked against real rows in the lab workspace
+(`law-sc200-sentinel`). Both analytics rules were deployed and readback-verified; no live trigger
+of the LSASS rule is recorded.
 
 | Check | Evidence |
 |---|---|
-| **Parser projects live rows** | `Sysmon \| summarize count() by EventID` returned EID 1 (197) and EID 10 (136) — both extracted out of the `EventData` XML into columns |
+| **Parser returns live rows** | `Sysmon \| summarize count() by EventID` returned EID 1 (197) and EID 10 (136). `EventID` is a native `Event` column, so this shows the function resolved and returned Sysmon rows of both IDs, not that `EventData` was extracted. Extraction is shown for EID 1 only, by the detection row below (`Image`, `CommandLine` and `ParentImage` came back populated); extraction of EID 10 fields (`TargetImage`, `GrantedAccess`) is not evidenced |
 | **Deploy is real, not dry-run** | Parser function + 2 scheduled analytics rules created in the workspace, each confirmed by readback (PUT → GET → compare) and cross-checked in the Azure Activity log |
-| **Detection fires on live telemetry** | A benign encoded-PowerShell process was executed on the event-source VM; the deployed rule's *exact* predicate returned the single matching Sysmon EID 1 row (`powershell.exe -nop -w hidden -enc …`). The invocation harness's own wrapper process was correctly excluded by `filter_azure` — a clean `1 of 1` |
+| **Detection logic matches live telemetry** | A benign encoded-PowerShell process was executed on the event-source VM. A hand-run query through `Sysmon`, using a narrowed copy of the deployed rule's selection and none of its `filter_*` exclusions, returned one row: that process (`powershell.exe -nop -w hidden -enc …`). No run of the deployed rule's full predicate, and no alert from the scheduled rule, is recorded |
 
 The bar held: no Sentinel rule is promoted to "verified" on structural CI alone. The evidence
-above is live-row evidence, the same standard `wazuh/rule_map.yml` holds for the Wazuh twins.
+above is live-row evidence, the same bar `wazuh/rule_map.yml` sets for the Wazuh twins, but it
+covers only EID 1 extraction and the encoded-PowerShell selection; the LSASS rule has none.
 
 **Still open.** Incident generation and the ADTE triage hand-off are not yet captured, so the
-honest status of the full loop is **"deployed and detection-validated"** — not yet
-"incident-to-triage proven".
+honest status of the full loop is **"deployed, with the encoded-PowerShell detection logic checked
+on live rows"** — not yet "incident-to-triage proven".
 
 ## Generate locally
 

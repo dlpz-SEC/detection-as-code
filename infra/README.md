@@ -15,7 +15,7 @@ deliverable.
 |---|---|
 | `main.bicep` | Subscription-scope entry point: the resource group, then the modules below |
 | `modules/workspace.bicep` | Log Analytics workspace with a daily ingestion cap, plus Microsoft Sentinel onboarded onto it |
-| `modules/dcr.bicep` | Data Collection Rule skeleton — XPath-filtered Windows security + Sysmon events |
+| `modules/dcr.bicep` | Data Collection Rule — XPath-filtered Windows security + Sysmon events. Its deployed configuration was read back from ARM on 2026-09-04 (UTC): [`docs/evidence/dcr-config.json`](../docs/evidence/dcr-config.json) |
 | `modules/vm.bicep` | **Phase 2 (opt-in):** Windows VM + AMA + Sysmon + DCR association — the event source that feeds the DCR |
 | `modules/sysmonconfig.xml` | Minimal Sysmon config (EID 1 + 10 only) embedded into the VM's install extension |
 | `modules/promote-dc.ps1` | **Phase 2b (opt-in):** promotes that VM to an AD DS domain controller — inlined into a `runCommands` resource that runs after the AMA and Sysmon extensions |
