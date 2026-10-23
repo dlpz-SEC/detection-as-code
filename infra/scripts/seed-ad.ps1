@@ -103,9 +103,11 @@
         size and retention with `wevtutil gl Security` before assuming an event
         from an hour ago is still there.
       - The DC VM itself is the compute bill. Deallocate it between live-fire
-        runs (`az vm deallocate`); a Sentinel scheduled rule fires from
-        already-ingested rows, so the VM does not need to be up for the
-        detection to raise.
+        runs (`az vm deallocate`); ingested rows stay queryable in the
+        workspace with the VM off, and a Sentinel scheduled rule queries those
+        rows, not the VM. No such rule exists for the authentication events
+        this script enables: both 4625 correlations are target: none in
+        sentinel/rule_map.yml.
 
     WARNING - LAB CREDENTIALS, NON-ROUTABLE DOMAIN.
 

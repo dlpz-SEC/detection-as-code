@@ -159,8 +159,9 @@ SecurityEvent
 The query projected no status column, so the outcome of each `4776` is inferred from the `4625`
 or `4624` beside it, not read from the event. The run produced 3 failures for `m.okafor`, below
 the rule's threshold of 5 per `TargetUserName` within an hour. This shows the event sequence the
-rule keys on, not a sequence that meets its threshold; a run that meets it needs
-`-FailuresPerAccount 5`, the script's maximum.
+rule keys on, not a sequence that meets its threshold. The run used the script's then-default of
+3 failures; the default has since been raised to 5 (also the script's maximum), so a default run
+now makes 5 failed validations against the brute-force target. No run at 5 has been captured.
 
 Failures alone are noise. Failures followed by a valid logon from the same source is a
 compromised credential, and the `4672` immediately preceding the `4624` makes it a
@@ -213,8 +214,9 @@ Recorded because evidence that overstates itself is worse than none.
   4625-based rules are Sigma correlation rules, which this pipeline cannot deploy to Sentinel:
   `sentinel/rule_map.yml` marks both `target: none`, because the kusto backend has no
   correlation support. So this evidence proves the *telemetry path* and the event sequence each
-  rule keys on (the spray meets its rule's threshold; the brute-force run does not), not an
-  end-to-end incident. Incident-to-triage remains Phase 6 and is still unproven.
+  rule keys on (the spray meets its rule's threshold; the brute-force run, made at the
+  then-default of 3 failures, does not), not an end-to-end incident. Incident-to-triage remains
+  Phase 6 and is still unproven.
 - **The `UNPROTECTED` reading on the OUs was a reporting bug, and the true state is now
   unverifiable.** This bullet previously recorded it as a real discrepancy between
   `seed-ad.ps1`'s stated intent and its behavior. That was wrong, and the correction is
